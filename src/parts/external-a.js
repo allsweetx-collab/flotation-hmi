@@ -583,6 +583,34 @@ export function buildExternalA(world) {
   const FSTEP = 1.868 / FSX, FSTEPZ = 1.568 / FSZ
   const F_HX = 0.934, F_HZ = 0.784
 
+  // ================================================================ 浮出泡沫面的气泡
+  // 少量 InstancedMesh 小球：从泡沫层里浮出、鼓胀、破裂，表现泡沫持续从矿浆中生成
+  const BUB_N = 16
+  const bubX = new Float32Array(BUB_N)
+  const bubZ = new Float32Array(BUB_N)
+  const bubR = new Float32Array(BUB_N)
+  const bubPh = new Float32Array(BUB_N)
+  {
+    const R = rng(507)
+    for (let i = 0; i < BUB_N; i++) {
+      bubX[i] = (R() - 0.5) * 1.62
+      bubZ[i] = -0.50 + R() * 1.16
+      bubR[i] = 0.012 + R() * 0.020
+      bubPh[i] = R()
+    }
+  }
+  const bubMat = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(0.60, 0.545, 0.42), roughness: 0.30, metalness: 0.0,
+    sheen: 0.65, sheenColor: new THREE.Color(0.72, 0.66, 0.50), sheenRoughness: 0.45,
+    transparent: true, opacity: 0.88, depthWrite: false, envMapIntensity: 0.7,
+  })
+  const bubbles = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 8), bubMat, BUB_N)
+  bubbles.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+  bubbles.frustumCulled = false
+  bubbles.visible = false
+  bubbles.renderOrder = 5
+  cell.add(bubbles)
+
   // ================================================================ 极简飞溅（落矿/扰动时）
   const SPL_N = 12
   const splDir = new Float32Array(SPL_N * 2)
@@ -888,6 +916,26 @@ export function buildExternalA(world) {
       foamTex.bump.offset.y -= dt * (0.015 + flow * 0.16)
       foamTex.bump.offset.x += dt * 0.01
       foamTex.color.offset.copy(foamTex.bump.offset)
+
+      // 泡沫表面的气泡：浮出 → 鼓胀 → 破裂（充气量不足时隐藏）
+      const bubOn = foamV > 0.12
+      bubbles.visible = bubOn
+      if (bubOn) {
+        const surf = LIQ_Y + th * 0.8
+        for (let i = 0; i < BUB_N; i++) {
+          const ph = (t * 0.42 + bubPh[i]) % 1
+          const rr = bubR[i] * (0.62 + 0.55 * ph)
+          const pop = ph > 0.8 ? 1 - smooth01((ph - 0.8) / 0.2) : 1
+          dummy.position.set(bubX[i] + Math.sin(t * 1.3 + i) * 0.008, surf - rr * 0.5 + ph * (rr * 1.9 + 0.014), bubZ[i])
+          dummy.scale.setScalar(Math.max(0.0001, rr * pop * smooth01(foamV * 1.4)))
+          dummy.rotation.set(0, 0, 0)
+          dummy.updateMatrix()
+          bubbles.setMatrixAt(i, dummy.matrix)
+        }
+        bubbles.instanceMatrix.needsUpdate = true
+      }
+    } else {
+      bubbles.visible = false
     }
 
     // ---------------- 落矿涟漪飞溅（少量小球，非粒子系统） ----------------

@@ -5,24 +5,22 @@ import * as THREE from 'three'
 import { MAT, GEO, clamp } from '../kit/lab-kit.js'
 
 // ================================================================== 固定几何
-// 立柱贴槽体后左角外沿（槽壁 x≈-0.955/z≈-0.805，立柱不能再往内，否则穿矿浆）
-const COL = { x: -1.14, z: -0.95, baseY: 0.55, topY: 3.92 }
-const CAR = { z: -0.80, y0: 2.35, travel: 1.10 }      // 滑座原点 z / y 行程
-const TRUN = { y: 0.22, z: 0.06 }                     // 滑座局部：俯仰枢轴
-const BOOM = { ret: 0.98, ext: 0.65 }                 // 套筒最短/可伸长（沿臂轴）
-const PIVOT = new THREE.Vector3(0.9025, 0, -0.4307).normalize()   // 水平俯仰轴
+// 立柱立于浮选槽前侧走道左端（z≈1.15），臂从溜槽外侧伸向精矿槽，避免与刮板扫掠区重叠。
+const COL = { x: -1.33, z: 1.15, baseY: 1.02, topY: 3.30 }
+const CAR = { z: 1.30, y0: 2.42, travel: 0.50 }       // 滑座原点 z / y 行程
+const TRUN = { y: 0.22, z: 0.10 }                     // 滑座局部：俯仰枢轴
+const BOOM = { ret: 1.15, ext: 0.70 }                 // 套筒最短/可伸长（沿臂轴）
 
-// 吸管轴向：由夹持点向管口（向下、向槽心）
-const PIPE_UP = new THREE.Vector3(-0.209, 0.949, -0.241).normalize()
+// 吸管竖直悬挂，从精矿槽槽口插入液面以下
+const PIPE_UP = new THREE.Vector3(0, 1, 0)
 const PIPE_DOWN = PIPE_UP.clone().negate()
-const PIPE_LEN = 0.735
-const Q_PIPE = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), PIPE_DOWN)
+const PIPE_LEN = 0.72
+const Q_PIPE = new THREE.Quaternion()
 
 // 夹持爪局部坐标系：X = 腕点指向管轴，Y = 管轴向上，Z = X×Y
-const CLAMP_X = new THREE.Vector3(-0.431, 0, -0.902)
-CLAMP_X.addScaledVector(PIPE_UP, -CLAMP_X.dot(PIPE_UP)).normalize()
-const CLAMP_Z = new THREE.Vector3().crossVectors(CLAMP_X, PIPE_UP).normalize()
-const Q_CLAMP = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(CLAMP_X, PIPE_UP, CLAMP_Z))
+const CLAMP_X = new THREE.Vector3(1, 0, 0)
+const CLAMP_Z = new THREE.Vector3(0, 0, 1)
+const Q_CLAMP = new THREE.Quaternion()
 
 // 视觉相机 / 环形光源
 const CAM_HEAD = new THREE.Vector3(0.62, 3.12, -0.18)
@@ -157,12 +155,15 @@ function makePose() {
   }
 }
 const _bx = new THREE.Vector3()
+const _by = new THREE.Vector3()
 const _bm = new THREE.Matrix4()
+const UP_AXIS = new THREE.Vector3(0, 1, 0)
 function solvePose(stroke, out) {
   const yc = CAR.y0 + CAR.travel * stroke
   out.carriageY = yc
   out.B.set(COL.x, yc + TRUN.y, CAR.z + TRUN.z)
-  _target.set(-0.730, 2.62 - 0.26 * stroke, 0.14)
+  // 目标腕点：溜槽正上方（x/z 在槽内，y 高于槽口加强圈 0.28 以上）
+  _target.set(-0.20, 2.60 - 0.06 * stroke, 1.17)
   out.dir.copy(_target).sub(out.B)
   const L = out.dir.length() || 1e-6
   out.dir.multiplyScalar(1 / L)
@@ -173,8 +174,12 @@ function solvePose(stroke, out) {
   // 腕点 → 法兰 → 管口（刚性：法兰相对腕点固定）
   out.flange.copy(out.W).addScaledVector(CLAMP_X, 0.10).addScaledVector(PIPE_UP, 0.085)
   out.mouth.copy(out.flange).addScaledVector(PIPE_DOWN, PIPE_LEN)
-  _bx.crossVectors(out.dir, PIVOT).normalize()
-  out.qBoom.setFromRotationMatrix(_bm.makeBasis(PIVOT, _bx, out.dir))
+  // 正交基：X = UP × dir（俯仰轴），Y = dir × X，Z = dir（臂轴）
+  _bx.crossVectors(UP_AXIS, out.dir)
+  if (_bx.lengthSq() < 1e-6) _bx.set(1, 0, 0)
+  _bx.normalize()
+  _by.crossVectors(out.dir, _bx).normalize()
+  out.qBoom.setFromRotationMatrix(_bm.makeBasis(_bx, _by, out.dir))
   return out
 }
 
@@ -229,19 +234,19 @@ function buildTelescopic(world, sim, pose) {
 
   const cx = COL.x, cz = COL.z
 
-  // ---------- 基础 / 地脚（落在检修平台上） ----------
-  const foot = addMesh(g, GEO.rbox(0.36, 0.035, 0.36, 0.008), darkSteel, cx, 0.098, cz)
+  // ---------- 基础 / 地脚（落在 y=0.52 的检修平台上） ----------
+  const foot = addMesh(g, GEO.rbox(0.36, 0.035, 0.36, 0.008), darkSteel, cx, 0.5375, cz)
   foot.castShadow = true; foot.receiveShadow = true
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    addMesh(g, new THREE.CylinderGeometry(0.015, 0.015, 0.055, 10), chrome, cx + sx * 0.13, 0.125, cz + sz * 0.13)
-    addMesh(g, new THREE.CylinderGeometry(0.026, 0.026, 0.016, 6), darkSteel, cx + sx * 0.13, 0.152, cz + sz * 0.13)
+    addMesh(g, new THREE.CylinderGeometry(0.015, 0.015, 0.055, 10), chrome, cx + sx * 0.13, 0.564, cz + sz * 0.13)
+    addMesh(g, new THREE.CylinderGeometry(0.026, 0.026, 0.016, 6), darkSteel, cx + sx * 0.13, 0.591, cz + sz * 0.13)
   }
-  const ped = addMesh(g, GEO.rbox(0.22, 0.45, 0.22, 0.012), darkSteel, cx, 0.33, cz)
+  const ped = addMesh(g, GEO.rbox(0.22, 0.45, 0.22, 0.012), darkSteel, cx, 0.78, cz)
   ped.castShadow = true
-  for (const sx of [-1, 1]) addMesh(g, GEO.rbox(0.014, 0.30, 0.17, 0.004), midSteel, cx + sx * 0.117, 0.42, cz)
-  for (const sz of [-1, 1]) addMesh(g, GEO.rbox(0.17, 0.30, 0.014, 0.004), midSteel, cx, 0.42, cz + sz * 0.117)
-  addMesh(g, GEO.rbox(0.226, 0.10, 0.226, 0.006), hazard, cx, 0.20, cz)
-  addMesh(g, GEO.rbox(0.30, 0.032, 0.30, 0.006), midSteel, cx, 0.545, cz).castShadow = true
+  for (const sx of [-1, 1]) addMesh(g, GEO.rbox(0.014, 0.30, 0.17, 0.004), midSteel, cx + sx * 0.117, 0.87, cz)
+  for (const sz of [-1, 1]) addMesh(g, GEO.rbox(0.17, 0.30, 0.014, 0.004), midSteel, cx, 0.87, cz + sz * 0.117)
+  addMesh(g, GEO.rbox(0.226, 0.10, 0.226, 0.006), hazard, cx, 0.62, cz)
+  addMesh(g, GEO.rbox(0.30, 0.032, 0.30, 0.006), midSteel, cx, 1.005, cz).castShadow = true
 
   // ---------- 立柱 ----------
   const colH = COL.topY - COL.baseY
@@ -249,33 +254,33 @@ function buildTelescopic(world, sim, pose) {
   column.castShadow = true; column.receiveShadow = true
   addMesh(g, GEO.rbox(0.205, 0.04, 0.205, 0.008), midSteel, cx, COL.topY + 0.02, cz)
   // 拼接板 + 螺栓
-  for (const y of [1.55, 2.55]) {
+  for (const y of [1.72, 2.62]) {
     for (const sz of [-1, 1]) {
       addMesh(g, GEO.rbox(0.20, 0.12, 0.014, 0.004), midSteel, cx, y, cz + sz * 0.083)
       for (const sx of [-1, 1]) addMesh(g, new THREE.CylinderGeometry(0.009, 0.009, 0.02, 6), chrome, cx + sx * 0.07, y + 0.03, cz + sz * 0.092).rotation.x = Math.PI / 2
     }
   }
   // 侧面电缆槽 + 行程标尺 + 铭牌
-  addMesh(g, GEO.rbox(0.028, 2.45, 0.075, 0.005), black, cx - 0.095, 2.05, cz + 0.02)
-  const scale = addMesh(g, new THREE.PlaneGeometry(0.062, 1.30), new THREE.MeshStandardMaterial({ map: tickTex(), roughness: 0.6, metalness: 0.1 }), cx - 0.081, 2.15, cz + 0.055)
+  addMesh(g, GEO.rbox(0.028, 2.10, 0.075, 0.005), black, cx - 0.095, 2.16, cz + 0.02)
+  const scale = addMesh(g, new THREE.PlaneGeometry(0.062, 1.10), new THREE.MeshStandardMaterial({ map: tickTex(), roughness: 0.6, metalness: 0.1 }), cx - 0.081, 2.66, cz + 0.055)
   scale.rotation.y = -Math.PI / 2
-  const plate = addMesh(g, new THREE.PlaneGeometry(0.17, 0.045), new THREE.MeshStandardMaterial({ map: plateTex('自动取样 Sampler-S02'), roughness: 0.5, metalness: 0.2 }), cx + 0.01, 1.92, cz + 0.081)
+  const plate = addMesh(g, new THREE.PlaneGeometry(0.17, 0.045), new THREE.MeshStandardMaterial({ map: plateTex('自动取样 Sampler-S02'), roughness: 0.5, metalness: 0.2 }), cx + 0.01, 1.90, cz + 0.081)
   plate.rotation.y = 0
-  addMesh(g, GEO.rbox(0.19, 0.062, 0.006, 0.003), black, cx + 0.01, 1.92, cz + 0.077)
+  addMesh(g, GEO.rbox(0.19, 0.062, 0.006, 0.003), black, cx + 0.01, 1.90, cz + 0.077)
 
   // ---------- 双竖直导轨 ----------
-  const railLen = 2.85
+  const railLen = COL.topY - COL.baseY - 0.24      // 2.04
   for (const sx of [-1, 1]) {
-    const r = addMesh(g, new THREE.CylinderGeometry(0.019, 0.019, railLen, 14), rail, cx + sx * 0.075, 0.95 + railLen / 2, cz + 0.095)
+    const r = addMesh(g, new THREE.CylinderGeometry(0.019, 0.019, railLen, 14), rail, cx + sx * 0.075, 1.20 + railLen / 2, cz + 0.095)
     r.castShadow = true
-    for (const y of [1.0, 1.65, 2.3, 2.95, 3.6, 3.78]) {
+    for (const y of [1.25, 1.72, 2.19, 2.66, 3.13]) {
       addMesh(g, GEO.rbox(0.062, 0.05, 0.05, 0.005), midSteel, cx + sx * 0.075, y, cz + 0.088)
     }
-    addMesh(g, new THREE.CylinderGeometry(0.027, 0.027, 0.018, 14), midSteel, cx + sx * 0.075, 0.94, cz + 0.095)
-    addMesh(g, new THREE.CylinderGeometry(0.027, 0.027, 0.018, 14), midSteel, cx + sx * 0.075, 3.81, cz + 0.095)
+    addMesh(g, new THREE.CylinderGeometry(0.027, 0.027, 0.018, 14), midSteel, cx + sx * 0.075, 1.19, cz + 0.095)
+    addMesh(g, new THREE.CylinderGeometry(0.027, 0.027, 0.018, 14), midSteel, cx + sx * 0.075, 3.25, cz + 0.095)
   }
   // 上下限位接近开关
-  for (const [y, c] of [[2.42, 0x3fe0c5], [3.34, 0xffb84d]]) {
+  for (const [y, c] of [[2.45, 0x3fe0c5], [3.05, 0xffb84d]]) {
     addMesh(g, GEO.rbox(0.05, 0.06, 0.045, 0.005), black, cx + 0.075, y, cz + 0.13)
     const ledMat = new THREE.MeshBasicMaterial({ color: c, toneMapped: false })
     addMesh(g, new THREE.SphereGeometry(0.008, 8, 6), ledMat, cx + 0.075, y + 0.018, cz + 0.154)
@@ -299,7 +304,7 @@ function buildTelescopic(world, sim, pose) {
   // 俯仰枢轴框架（随机架安装角）
   const tf = new THREE.Group()
   tf.position.set(0, TRUN.y, TRUN.z)
-  tf.rotation.y = 0.4452
+  tf.rotation.y = Math.atan2(1.13, 0.38)            // 初始朝向，逐帧由臂方向修正
   carriage.add(tf)
   for (const sx of [-1, 1]) {
     const ear = addMesh(tf, GEO.rbox(0.028, 0.30, 0.115, 0.006), yellow, sx * 0.14, 0.02, 0)
@@ -343,7 +348,7 @@ function buildTelescopic(world, sim, pose) {
     sections.push(s)
   }
   // 臂端法兰（柱塞头，接夹持爪腕球）
-  cylZ(boom, brass, 0.05, 0.05, 0, 0, BOOM.ret + BOOM.ext - 0.02)
+  const tipCollar = cylZ(boom, brass, 0.05, 0.05, 0, 0, BOOM.ret + BOOM.ext - 0.02)
 
   // ---------- 夹持爪（两爪夹紧吸管，刚性连接） ----------
   const clampG = new THREE.Group()
@@ -362,7 +367,7 @@ function buildTelescopic(world, sim, pose) {
 
   world.addPart('telescopic', g, {
     label: '伸缩吸取机构',
-    htmlLabel: '伸缩机构 · 行程 860 mm',
+    htmlLabel: '伸缩机构 · 行程 700 mm',
     anchor: [COL.x + 0.02, COL.topY + 0.10, COL.z + 0.02],
   })
   world.root.add(g)
@@ -370,11 +375,14 @@ function buildTelescopic(world, sim, pose) {
   // 逐帧：滑座升降、臂俯仰/伸缩、夹持爪就位
   world.onFrame(() => {
     carriage.position.y = pose.carriageY
+    tf.rotation.y = Math.atan2(pose.dir.x, pose.dir.z)
     boom.position.copy(pose.B)
     boom.quaternion.copy(pose.qBoom)
-    sections[0].position.z = 0.54 + 0.20 * pose.ext
-    sections[1].position.z = 0.67 + 0.42 * pose.ext
-    sections[2].position.z = 0.75 + 0.65 * pose.ext
+    // 三级套筒随臂端位置伸缩，末端始终与腕点对齐
+    sections[0].position.z = pose.tip - 0.83
+    sections[1].position.z = pose.tip - 0.53
+    sections[2].position.z = pose.tip - 0.25
+    tipCollar.position.z = pose.tip - 0.02
     clampG.position.copy(pose.W)
     clampG.quaternion.copy(Q_CLAMP)
   })
@@ -427,16 +435,15 @@ function buildSuction(world, sim, pose, mean) {
   const mf = mean.flange
   const hp = (dx, dy, dz) => [mf.x + dx, mf.y + dy, mf.z + dz]
   const hosePts = [
-    hp(-0.0125, 0.0569, -0.0145),
-    hp(0.066, 0.407, -0.098),
-    hp(0.126, 0.757, -0.318),
-    hp(0.026, 1.037, -0.678),
-    hp(-0.164, 1.137, -1.118),
-    hp(-0.504, 0.917, -1.188),
-    hp(-0.524, 0.407, -1.208),
-    hp(-0.514, -0.143, -1.208),
-    hp(-0.494, -0.593, -1.208),
-    hp(-0.474, -0.943, -1.198),
+    hp(0.000, 0.055, 0.000),
+    hp(0.060, 0.340, -0.060),
+    hp(-0.120, 0.640, -0.020),
+    hp(-0.480, 0.820, 0.120),
+    hp(-0.860, 0.740, 0.200),
+    hp(-1.180, 0.340, 0.220),
+    hp(-1.330, -0.100, 0.200),
+    hp(-1.380, -0.620, 0.170),
+    hp(-1.380, -1.180, 0.170),
   ]
   const hoseGeo = GEO.pipe(hosePts, 0.030, { seg: 64, radial: 10 })
   const inv = new THREE.Matrix4().compose(mean.flange, Q_PIPE, new THREE.Vector3(1, 1, 1)).invert()
@@ -454,30 +461,31 @@ function buildSuction(world, sim, pose, mean) {
     rig.add(ring)
   }
 
-  // ---------- 槽外取样杯 / 接收器（固定，挂在立柱背面） ----------
-  addMesh(g, GEO.rbox(0.22, 0.34, 0.20, 0.012), darkSteel, -1.29, 1.08, -1.18).castShadow = true
-  addMesh(g, GEO.rbox(0.236, 0.16, 0.216, 0.008), hazard, -1.29, 1.15, -1.18)
+  // ---------- 取样接收器（固定在立柱前侧，接吸管软管） ----------
+  const RX = -1.48, RZ = 1.34
+  addMesh(g, GEO.rbox(0.22, 0.34, 0.20, 0.012), darkSteel, RX, 1.08, RZ).castShadow = true
+  addMesh(g, GEO.rbox(0.236, 0.16, 0.216, 0.008), hazard, RX, 1.15, RZ)
   const funnelMat = new THREE.MeshStandardMaterial({ color: 0x2a2d30, metalness: 0.7, roughness: 0.35, side: THREE.DoubleSide })
-  addMesh(g, new THREE.CylinderGeometry(0.135, 0.10, 0.50, 28, 1, true), funnelMat, -1.29, 1.55, -1.18)
-  addMesh(g, new THREE.TorusGeometry(0.135, 0.012, 8, 28), chrome, -1.29, 1.80, -1.18).rotation.x = Math.PI / 2
-  addMesh(g, new THREE.CylinderGeometry(0.10, 0.075, 0.06, 24), darkSteel, -1.29, 1.27, -1.18)
+  addMesh(g, new THREE.CylinderGeometry(0.135, 0.10, 0.50, 28, 1, true), funnelMat, RX, 1.55, RZ)
+  addMesh(g, new THREE.TorusGeometry(0.135, 0.012, 8, 28), chrome, RX, 1.80, RZ).rotation.x = Math.PI / 2
+  addMesh(g, new THREE.CylinderGeometry(0.10, 0.075, 0.06, 24), darkSteel, RX, 1.27, RZ)
   // 液位观察条 + 排液阀 + 状态灯
   const sightMat = new THREE.MeshPhysicalMaterial({ color: 0x9fd0c8, roughness: 0.1, metalness: 0, transmission: 0.5, transparent: true, opacity: 0.4, depthWrite: false })
-  addMesh(g, new THREE.BoxGeometry(0.02, 0.20, 0.012), sightMat, -1.184, 1.06, -1.18)
-  addMesh(g, new THREE.CylinderGeometry(0.022, 0.022, 0.07, 12), chrome, -1.29, 0.90, -1.18)
-  addMesh(g, new THREE.TorusGeometry(0.04, 0.008, 6, 16), chrome, -1.29, 0.86, -1.18).rotation.x = Math.PI / 2
+  addMesh(g, new THREE.BoxGeometry(0.02, 0.20, 0.012), sightMat, RX + 0.114, 1.06, RZ)
+  addMesh(g, new THREE.CylinderGeometry(0.022, 0.022, 0.09, 12), chrome, RX, 0.96, RZ + 0.135).rotation.x = Math.PI / 2
+  addMesh(g, new THREE.TorusGeometry(0.04, 0.008, 6, 16), chrome, RX, 0.96, RZ + 0.19).rotation.x = 0
   const recvLed = new THREE.MeshBasicMaterial({ color: 0x3fe0c5, toneMapped: false })
-  addMesh(g, new THREE.SphereGeometry(0.01, 8, 6), recvLed, -1.42, 1.22, -1.18)
-  // 支架（接立柱背面）
-  bar(g, steel, [-1.20, 1.20, -1.02], [-1.28, 1.20, -1.09], 0.12, 0.05).castShadow = true
-  bar(g, darkSteel, [-1.29, 1.18, -1.08], [-1.29, 1.30, -1.12], 0.10, 0.04)
-  addMesh(g, GEO.rbox(0.14, 0.12, 0.02, 0.004), steel, -1.20, 1.20, -1.035).rotation.y = Math.PI / 2
-  for (const sy of [-0.04, 0.04]) addMesh(g, new THREE.CylinderGeometry(0.009, 0.009, 0.024, 6), chrome, -1.20, 1.20 + sy, -1.024).rotation.x = Math.PI / 2
+  addMesh(g, new THREE.SphereGeometry(0.01, 8, 6), recvLed, RX + 0.08, 1.22, RZ + 0.104)
+  // 支架（从立柱前面伸到接收器）
+  bar(g, steel, [-1.33, 1.20, 1.238], [-1.44, 1.20, 1.30], 0.10, 0.05).castShadow = true
+  bar(g, darkSteel, [-1.46, 1.22, 1.30], [-1.46, 1.10, 1.30], 0.08, 0.04)
+  addMesh(g, GEO.rbox(0.14, 0.12, 0.02, 0.004), steel, -1.33, 1.20, 1.239)
+  for (const sy of [-0.04, 0.04]) addMesh(g, new THREE.CylinderGeometry(0.009, 0.009, 0.024, 6), chrome, -1.33, 1.20 + sy, 1.229).rotation.x = Math.PI / 2
 
   world.addPart('suctionPipe', g, {
     label: '自动吸管',
     htmlLabel: '自动吸管 · Φ50',
-    anchor: [-0.70, 2.92, 0.10],
+    anchor: [-0.06, 2.70, 1.17],
   })
   world.root.add(g)
 

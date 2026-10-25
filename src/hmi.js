@@ -757,7 +757,7 @@ export function createHMI({ sim, world, actions, state }) {
             { k: '轴承温度', u: '℃', v: (d) => fmt(d.scraper.bearingTemp, 1), dot: (d) => d.scraper.bearingTemp < 60 ? 'ok' : 'warn' },
             { k: '运行状态', v: (d) => d.scraper.status, dot: (d) => d.scraper.status === '运行' ? 'ok' : 'idle' },
           ]),
-          blockNote('机构说明', '03', '刮板轴沿 X 向布置，叶片扫过泡沫层后经前溜槽排出精矿。'),
+          blockNote('机构说明', '03', '刮板轴沿 X 向布置，叶片扫过泡沫层，把泡沫推过前唇口直接落入紧贴槽体的精矿槽。'),
         ),
         right: compose(
           blockRows('刮取产出', '01', [
@@ -840,9 +840,9 @@ export function createHMI({ sim, world, actions, state }) {
             { k: '运行状态', v: (d) => d.telescope.status, dot: (d) => d.telescope.status === '运行' ? 'ok' : 'idle' },
           ]),
           blockBars('推杆行程', '02', [
-            { k: '行程', v: (d) => d.telescope.stroke, max: 860, fmt: (v) => fmt(v, 0) + ' mm' },
+            { k: '行程', v: (d) => d.telescope.stroke, max: 700, fmt: (v) => fmt(v, 0) + ' mm' },
           ]),
-          blockNote('机构说明', '03', '立柱导轨驱动滑块升降，吸管随滑块做 5.6 s 周期往复运动。'),
+          blockNote('机构说明', '03', '立柱位于浮选槽前侧走道左端，滑座带动伸缩臂与吸管伸至紧贴槽体的精矿槽上方取样。'),
         ),
         right: compose(
           blockRows('吸取作业', '01', [
@@ -870,7 +870,7 @@ export function createHMI({ sim, world, actions, state }) {
             { k: '堵塞预警', v: (d) => d.pipe.clog, dot: (d) => d.pipe.clog === '正常' ? 'ok' : 'bad' },
             { k: '运行状态', v: (d) => d.pipe.status, dot: (d) => d.pipe.status === '运行' ? 'ok' : 'idle' },
           ]),
-          blockNote('维护提示', '03', '每班次检查管口结垢，流速低于 1.2 m/s 时需反冲洗。'),
+          blockNote('维护提示', '03', '吸管自精矿槽液面下取精矿，管口保持在泡沫层以下 195–255 mm。'),
         ),
         right: compose(
           blockRows('吸取质量分析', '01', [
@@ -885,6 +885,44 @@ export function createHMI({ sim, world, actions, state }) {
             main: (d) => fmt(d.pipe.rep, 0), u: '/100', sub: '取样代表性',
             foot: '评分低于 80 时建议提高吸管浸入深度重新取样。',
           }),
+        ),
+      }
+
+      case 'concentrate': return {
+        left: compose(
+          blockKpis('精矿产出', '01', [
+            { k: '槽内液位', u: 'mm', v: (d) => fmt(d.concentrate.level, 0), dot: (d) => d.concentrate.level > 70 ? 'ok' : 'idle' },
+            { k: '精矿量', u: 'kg', v: (d) => fmt(d.concentrate.mass, 0) },
+            { k: 'Sn 品位', u: '%', v: (d) => fmt(d.concentrate.grade, 1), dot: (d) => d.concentrate.grade > 15 ? 'ok' : 'idle' },
+            { k: '回收率', u: '%', v: (d) => fmt(d.concentrate.recovery, 1), dot: (d) => d.concentrate.recovery > 80 ? 'ok' : 'idle' },
+          ]),
+          blockRows('槽内参数', '02', [
+            { k: '精矿密度', u: 'g/cm³', v: (d) => fmt(d.concentrate.density, 2) },
+            { k: '矿浆温度', u: '℃', v: (d) => fmt(d.concentrate.temp, 1) },
+            { k: '泡沫层厚度', u: 'mm', v: (d) => fmt(d.concentrate.froth, 0) },
+            { k: '进料速率', u: 'kg/min', v: (d) => fmt(d.concentrate.inflow, 1) },
+            { k: '接收状态', v: (d) => d.concentrate.status, dot: (d) => d.concentrate.status === '接收中' ? 'ok' : 'idle' },
+          ]),
+          blockBars('液位 / 槽容', '03', [
+            { k: '液位', v: (d) => d.concentrate.level, max: 480, fmt: (v) => fmt(v, 0) + ' mm' },
+          ]),
+          blockNote('工艺说明', '04', '刮板把泡沫推过浮选槽前唇口，泡沫直接翻落进紧贴槽体的精矿槽，吸管自槽内液面下吸取精矿。'),
+        ),
+        right: compose(
+          blockRows('精矿品质', '01', [
+            { k: '当前液位', u: 'mm', v: (d) => fmt(d.concentrate.level, 0) },
+            { k: '有效容积', u: 'm³', v: (d) => fmt(d.concentrate.volume, 3) },
+            { k: '累计精矿量', u: 'kg', v: (d) => fmt(d.concentrate.mass, 0) },
+            { k: 'Sn 品位', u: '%', v: (d) => fmt(d.concentrate.grade, 1) },
+            { k: '回收率', u: '%', v: (d) => fmt(d.concentrate.recovery, 1) },
+            { k: '槽体状态', v: (d) => d.concentrate.status, dot: (d) => d.concentrate.status === '接收中' ? 'ok' : 'idle' },
+          ]),
+          blockRing('槽容利用率', '02', {
+            pct: (d) => clamp(d.concentrate.level / 480, 0, 1),
+            main: (d) => fmt(d.concentrate.level / 480 * 100, 0), u: '%', sub: '槽容利用率',
+            foot: '液位超过 85 % 时开启排料阀，避免泡沫溢流。',
+          }),
+          blockNote('位置说明', '03', '精矿槽紧贴浮选槽前方唇口、与槽体同长通长布置；槽内液位随刮板速率和充气量变化。'),
         ),
       }
 

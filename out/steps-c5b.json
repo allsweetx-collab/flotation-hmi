@@ -1,0 +1,6 @@
+[
+  { "js": "__HMI.view(35, 22, 8.6)", "wait": 1.2, "out": "out/c5_wide.png" },
+  { "js": "__HMI.setCamera([0.62, 2.72, 2.30], [0.0, 2.20, 0.92])", "wait": 1.4, "out": "out/c5_lip.png" },
+  { "js": "__HMI.setCamera([-0.10, 3.05, 2.15], [-0.10, 2.05, 1.17])", "wait": 1.4, "out": "out/c5_pipe.png" },
+  { "js": "__HMI.view(-38, 18, 7.4)", "wait": 1.2, "out": "out/c5_left.png" }
+]

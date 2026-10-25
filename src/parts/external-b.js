@@ -1,11 +1,13 @@
 // 外部机组 B：气泵（混凝土基座/泵体/电机/联轴器护罩/进出口法兰/波纹软管/压力表/指示灯）
-//              + 刮板机构（横跨槽顶的轴/轴承座/薄叶片/减速电机/接矿溜槽与精矿桶）
+//              + 刮板机构（横跨槽顶的轴/轴承座/薄叶片/减速电机）
+//              + 精矿槽（紧贴浮选槽前唇口、与槽体同长的通长溜槽，接收刮出的泡沫，供吸管取精矿）
 import * as THREE from 'three'
 import { MAT, GEO, clamp, lerp } from '../kit/lab-kit.js'
 
 export function buildExternalB(world) {
   buildPump(world, world.sim)
   buildScraper(world, world.sim)
+  buildConcentrate(world, world.sim)
 }
 
 // ---------------------------------------------------------------- helpers
@@ -48,6 +50,31 @@ function namePlate(title, sub) {
   t.colorSpace = THREE.SRGBColorSpace
   t.anisotropy = 4
   return t
+}
+/** 精矿槽内泡沫层贴图（程序生成，不依赖外部资源） */
+let _frothTex = null
+function frothTexture() {
+  if (_frothTex) return _frothTex
+  const S = 256
+  const c = document.createElement('canvas'); c.width = c.height = S
+  const g = c.getContext('2d')
+  g.fillStyle = '#cdbfa2'; g.fillRect(0, 0, S, S)
+  for (let i = 0; i < 1050; i++) {
+    const x = Math.random() * S, y = Math.random() * S, r = 1.5 + Math.random() * 6
+    const gr = g.createRadialGradient(x - r * 0.3, y - r * 0.35, 0, x, y, r)
+    gr.addColorStop(0, 'rgba(252,248,236,0.92)')
+    gr.addColorStop(0.52, 'rgba(233,224,203,0.75)')
+    gr.addColorStop(0.84, 'rgba(158,144,116,0.55)')
+    gr.addColorStop(1, 'rgba(205,191,162,0)')
+    g.fillStyle = gr
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill()
+  }
+  _frothTex = new THREE.CanvasTexture(c)
+  _frothTex.wrapS = _frothTex.wrapT = THREE.RepeatWrapping
+  _frothTex.repeat.set(6.4, 1.05)
+  _frothTex.anisotropy = 8
+  _frothTex.colorSpace = THREE.SRGBColorSpace
+  return _frothTex
 }
 /** 螺栓（六角头 + 垫圈），几何复用 */
 function boltSet(mat, heads) {
@@ -340,7 +367,8 @@ function buildPump(world, sim) {
 // ================================================================ scraper
 function buildScraper(world, sim) {
   const g = new THREE.Group()
-  g.position.set(0, 2.47, 0.30)
+  // 轴靠近前唇口一侧（照片中刮板紧邻精矿溜槽），叶片扫过槽口前的泡沫带
+  g.position.set(0, 2.47, 0.62)
 
   const mFrame = MAT.steelDark({ color: [0.052, 0.057, 0.062], roughness: 0.55, metalness: 0.55 })
   const mCast = MAT.castIron({ color: [0.085, 0.09, 0.097], roughness: 0.48, metalness: 0.66 })
@@ -348,10 +376,6 @@ function buildScraper(world, sim) {
   const mBright = MAT.steel({ color: [0.40, 0.41, 0.42], roughness: 0.24 })
   const mBlade = MAT.stainless({ color: [0.24, 0.25, 0.26], roughness: 0.38, metalness: 0.8 })
   const mDrive = MAT.paint({ color: [0.036, 0.062, 0.076], roughness: 0.42 })
-  const mChute = MAT.steelDark({ color: [0.062, 0.067, 0.072], roughness: 0.5, metalness: 0.55 })
-  const mDrum = MAT.steelDark({ color: [0.066, 0.07, 0.074], roughness: 0.48, metalness: 0.55 })
-  const mPipe = MAT.stainless({ color: [0.24, 0.25, 0.26], roughness: 0.3 })
-  const mWarn = MAT.paint({ color: [0.30, 0.16, 0.02], roughness: 0.42 })
 
   // ---- 轴 + 两端轴承座
   const shaft = put(g, new THREE.CylinderGeometry(0.035, 0.035, 2.26, 24), mShaft, 0, 0, 0, true)
@@ -423,63 +447,7 @@ function buildScraper(world, sim) {
   coup.rotation.z = Math.PI / 2
   g.add(rotor)
 
-  // ---- 接矿溜槽（前缘对齐 z≈0.9；低于槽体溢流唇口，泡沫翻过唇口落入槽内）
-  const chute = new THREE.Group()
-  chute.position.set(0, -0.28, 0.76)
-  chute.rotation.z = -0.038                            // 向 +X 端倾斜，尾端下料
-  put(chute, new THREE.BoxGeometry(2.06, 0.012, 0.24), mChute, 0, 0, 0, true)
-  put(chute, new THREE.BoxGeometry(2.06, 0.05, 0.01), mChute, 0, 0.031, -0.12, true)   // 靠槽侧矮壁，溢流可越入
-  put(chute, new THREE.BoxGeometry(2.06, 0.17, 0.01), mChute, 0, 0.091, 0.12, true)    // 外侧高壁
-  for (const ex of [-1.03, 1.03]) put(chute, new THREE.BoxGeometry(0.014, 0.11, 0.24), mChute, ex, 0.061, 0, true)
-  for (const rx of [-0.8, -0.3, 0.3, 0.8]) put(chute, new THREE.BoxGeometry(0.05, 0.035, 0.21), mChute, rx, -0.021, 0)
-  // 外侧壁上的警示色条（工业安全色，作为深色环境里的对比）
-  put(chute, new THREE.BoxGeometry(0.42, 0.05, 0.006), mWarn, -0.55, 0.135, 0.126, true)
-  put(chute, new THREE.BoxGeometry(0.42, 0.05, 0.006), mWarn, 0.55, 0.135, 0.126, true)
-  g.add(chute)
-  // 槽壁支架（3 组）：水平托臂 + 斜撑 + 壁板
-  for (const bx of [-0.72, 0, 0.72]) {
-    const cy = -0.28 - bx * Math.sin(0.038)         // 该处溜槽底面高度（组内坐标）
-    put(g, new THREE.BoxGeometry(0.075, 0.25, 0.014), mFrame, bx, cy - 0.125, 0.568, true)
-    strut(g, [bx, cy - 0.012, 0.575], [bx, cy - 0.012, 0.80], 0.055, 0.022, mFrame, true)
-    strut(g, [bx, cy - 0.20, 0.575], [bx, cy - 0.022, 0.782], 0.04, 0.018, mFrame, true)
-  }
-
-  // ---- 溜槽出口：集料斗 + 下料管 + 精矿桶（坐在检修平台格栅上 y=0.52）
-  put(g, GEO.rbox(0.24, 0.18, 0.24, 0.01), mChute, 0.93, -0.41, 0.76, true)
-  put(g, new THREE.BoxGeometry(0.12, 0.07, 0.12), mChute, 0.93, -0.315, 0.76)
-  const pipePts = [
-    [0.93, -0.50, 0.76], [1.00, -0.67, 0.77], [1.03, -1.02, 0.78], [1.04, -1.27, 0.79],
-    [1.09, -1.37, 0.80], [1.18, -1.42, 0.80], [1.26, -1.43, 0.80], [1.28, -1.45, 0.80],
-  ]
-  const down = new THREE.Mesh(GEO.pipe(pipePts, 0.048, { seg: 44, radial: 12 }), mPipe)
-  down.castShadow = true
-  g.add(down)
-  // 管卡（2 处，固定在槽体前壁）
-  for (const py of [-0.72, -1.19]) {
-    strut(g, [0.94, py, 0.57], [1.03, py, 0.775], 0.045, 0.018, mFrame, true)
-    put(g, new THREE.BoxGeometry(0.06, 0.07, 0.012), mFrame, 0.94, py, 0.562, true)
-    const clamp = put(g, new THREE.TorusGeometry(0.054, 0.008, 6, 16), mBright, 1.035, py, 0.785)
-    clamp.rotation.x = Math.PI / 2
-  }
-  // 精矿桶（落座在检修平台上）
-  const drum = new THREE.Group()
-  drum.position.set(1.28, -1.95, 0.80)
-  put(drum, new THREE.TorusGeometry(0.15, 0.012, 6, 24), mFrame, 0, 0.012, 0).rotation.x = Math.PI / 2
-  for (const lx of [-0.11, 0.11]) for (const lz of [-0.11, 0.11]) {
-    put(drum, new THREE.BoxGeometry(0.032, 0.05, 0.032), mFrame, lx, 0.03, lz, true)
-  }
-  put(drum, GEO.lathe([[0, 0], [0.168, 0], [0.172, 0.02], [0.172, 0.46], [0.164, 0.48], [0, 0.48]], 28), mDrum, 0, 0.04, 0, true)
-  put(drum, GEO.disc(0.172, 0.04, 0.006, 28), mDrum, 0, 0.52, 0, true)
-  for (const hy of [0.22, 0.42]) put(drum, new THREE.TorusGeometry(0.174, 0.006, 6, 24), mDrum, 0, hy, 0).rotation.x = Math.PI / 2
-  put(drum, new THREE.TorusGeometry(0.052, 0.008, 6, 16), mBright, 0, 0.542, 0).rotation.x = Math.PI / 2
-  // 排料阀
-  const drain = put(drum, new THREE.CylinderGeometry(0.02, 0.02, 0.10, 12), mPipe, 0.20, 0.12, 0)
-  drain.rotation.z = Math.PI / 2
-  const dwheel = put(drum, new THREE.TorusGeometry(0.045, 0.008, 6, 18), mBright, 0.25, 0.12, 0)
-  dwheel.rotation.y = Math.PI / 2
-  g.add(drum)
-
-  world.addPart('scraper', g, { label: '刮板机构', htmlLabel: '刮板机构 · 17.6 rpm', anchor: [0.55, 2.92, 0.30] })
+  world.addPart('scraper', g, { label: '刮板机构', htmlLabel: '刮板机构 · 17.6 rpm', anchor: [0.55, 2.92, 0.62] })
   world.root.add(g)
 
   // ---- 动画：叶片按 sim.anim.scraperAngle 匀速旋转；点击脉冲只临时加速，不改运行状态
@@ -492,3 +460,222 @@ function buildScraper(world, sim) {
     rotor.rotation.x = A.scraperAngle + extra
   })
 }
+
+// ================================================================ concentrate launder
+// 精矿槽：紧贴浮选槽前唇口的通长溜槽（与浮选槽同长，宽 0.36 m）。
+// 刮板把泡沫推过前唇口，泡沫直接翻落进溜槽（无溜槽、无下料管）；
+// 伸缩机构带动吸管从溜槽液面下吸取精矿。
+function buildConcentrate(world, sim) {
+  const g = new THREE.Group()
+  g.position.set(0, 0, 1.17)
+  g.name = 'concentrate'
+
+  // 世界范围：x[-1.03, 1.03]、z[0.99, 1.35]；槽底 1.78，槽口 2.26（低于浮选槽唇口 2.315）
+  const LX = 2.06, LZ = 0.36, BOT = 1.78, TOP = 2.26, WT = 0.022
+  const IX = LX - 2 * WT, IZ = LZ - 2 * WT
+  const IN_BOT = BOT + WT
+  const CZ = LZ / 2 - WT / 2
+  const CX = LX / 2 - WT / 2
+
+  const mShell = MAT.steel({ color: [0.085, 0.078, 0.062], roughness: 0.52, metalness: 0.6 })
+  const mBand = MAT.steelDark({ color: [0.048, 0.052, 0.056], roughness: 0.55, metalness: 0.55 })
+  const mBright = MAT.steel({ color: [0.38, 0.39, 0.40], roughness: 0.24 })
+  const mPipe = MAT.stainless({ color: [0.24, 0.25, 0.26], roughness: 0.3 })
+  const mWarn = MAT.paint({ color: [0.30, 0.16, 0.02], roughness: 0.42 })
+  const mGlass = new THREE.MeshPhysicalMaterial({
+    color: 0x9fd0c8, roughness: 0.08, metalness: 0, transmission: 0.55, thickness: 0.006,
+    transparent: true, opacity: 0.38, depthWrite: false, side: THREE.DoubleSide, ior: 1.5, clearcoat: 1,
+  })
+
+  // ---- 槽体（通长、顶部开口）
+  put(g, new THREE.BoxGeometry(LX, WT, LZ), mShell, 0, BOT + WT / 2, 0, true)
+  for (const sz of [-1, 1]) put(g, new THREE.BoxGeometry(LX, TOP - BOT, WT), mShell, 0, (BOT + TOP) / 2, sz * CZ, true)
+  for (const sx of [-1, 1]) put(g, new THREE.BoxGeometry(WT, TOP - BOT, IZ), mShell, sx * CX, (BOT + TOP) / 2, 0, true)
+  // 槽口加强圈
+  for (const sz of [-1, 1]) put(g, new THREE.BoxGeometry(LX + 0.05, 0.032, 0.05), mBand, 0, TOP + 0.016, sz * CZ, true)
+  for (const sx of [-1, 1]) put(g, new THREE.BoxGeometry(0.05, 0.032, LZ + 0.05), mBand, sx * (LX / 2 + 0.002), TOP + 0.016, 0, true)
+  // 外壁（走道侧）警示带
+  put(g, new THREE.BoxGeometry(LX * 0.94, 0.022, 0.005), mWarn, 0, 2.232, LZ / 2 + 0.0025)
+
+  // ---- 支架：托臂 + 斜撑挂在浮选槽前壁（世界 z=0.85 → 本地 -0.32），不落地、不挡走道
+  for (const sx of [-0.86, -0.43, 0, 0.43, 0.86]) {
+    put(g, new THREE.BoxGeometry(0.07, 0.12, 0.016), mBand, sx, 1.70, -0.320)
+    put(g, new THREE.BoxGeometry(0.05, 0.05, 0.27), mBand, sx, 1.755, -0.195, true)
+    strut(g, [sx, 1.60, -0.313], [sx, 1.752, -0.075], 0.04, 0.028, mBand, true)
+  }
+  // 外纵梁（承托外侧槽壁）
+  put(g, new THREE.BoxGeometry(LX - 0.04, 0.045, 0.045), mBand, 0, 1.756, CZ, true)
+
+  // ---- 槽内液面 + 泡沫层
+  const liquidGeo = new THREE.PlaneGeometry(IX - 0.02, IZ - 0.02)
+  liquidGeo.rotateX(-Math.PI / 2)
+  const liquidMat = new THREE.MeshPhysicalMaterial({
+    color: 0x3b2d16, roughness: 0.2, metalness: 0.05, transparent: true, opacity: 0.82,
+    depthWrite: false, side: THREE.DoubleSide, sheen: 0.15, sheenColor: 0x8a6a3a,
+  })
+  const liquid = new THREE.Mesh(liquidGeo, liquidMat)
+  liquid.position.y = IN_BOT + 0.06
+  liquid.renderOrder = 2
+  g.add(liquid)
+
+  const tex = frothTexture()
+  // 泡沫面分网格：靠浮选槽一侧堆高，形成被刮板推来的泡沫堆（不再是平板）
+  const frothGeo = new THREE.PlaneGeometry(IX - 0.02, IZ - 0.02, 36, 12)
+  frothGeo.rotateX(-Math.PI / 2)
+  const frothArr = frothGeo.attributes.position.array
+  const frothBaseZ = new Float32Array(frothArr.length / 3)
+  for (let i = 0, n = frothArr.length / 3; i < n; i++) frothBaseZ[i] = frothArr[i * 3 + 2]
+  const frothMat = new THREE.MeshPhysicalMaterial({
+    map: tex, color: 0xf0e8d6, roughness: 0.92, metalness: 0,
+    sheen: 0.3, sheenColor: 0xd8cbaa, sheenRoughness: 0.8,
+    transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, envMapIntensity: 0.5,
+  })
+  const froth = new THREE.Mesh(frothGeo, frothMat)
+  froth.position.y = IN_BOT + 0.08
+  froth.renderOrder = 3
+  g.add(froth)
+
+  // 泡沫翻过前唇口：泡沫帘 + 唇口卷边（同一材质，随刮板流量显隐）
+  const curtainTex = tex.clone()
+  curtainTex.needsUpdate = true
+  curtainTex.repeat.set(5.0, 0.45)
+  const curtainMat = new THREE.MeshPhysicalMaterial({
+    map: curtainTex, color: 0xe4d6b8, roughness: 0.95, metalness: 0,
+    sheen: 0.35, sheenColor: 0xd8cbaa, sheenRoughness: 0.85,
+    transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, envMapIntensity: 0.5,
+  })
+  const curtain = new THREE.Mesh(new THREE.PlaneGeometry(1.46, 0.32), curtainMat)
+  curtain.position.set(0, 2.175, -0.122)
+  curtain.renderOrder = 4
+  curtain.visible = false
+  g.add(curtain)
+  // 泡沫舌：铺在前唇口斜面上，把浮选槽泡沫与溜槽泡沫连成一条连续的溢流带
+  const tongue = new THREE.Mesh(new THREE.PlaneGeometry(1.46, 0.20), curtainMat)
+  tongue.rotation.x = -Math.PI / 2 + 0.15
+  tongue.position.set(0, 2.326, -0.224)
+  tongue.renderOrder = 4
+  tongue.visible = false
+  g.add(tongue)
+
+  // 落料泡沫团：刮板每推一次，泡沫从唇口翻落进溜槽
+  // 位置/相位/大小随机（构建期固定），避免排成一排的机械感
+  const SPILL_N = 14
+  const spillMat = new THREE.MeshPhysicalMaterial({
+    color: 0xded0b2, roughness: 0.97, metalness: 0, transparent: true, opacity: 0.9,
+    depthWrite: false, sheen: 0.22, sheenColor: 0xd8cbaa, sheenRoughness: 0.9,
+  })
+  const spill = new THREE.InstancedMesh(new THREE.SphereGeometry(0.038, 8, 6), spillMat, SPILL_N)
+  spill.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+  spill.frustumCulled = false
+  spill.visible = false
+  spill.renderOrder = 4
+  g.add(spill)
+  const spillDummy = new THREE.Object3D()
+  const spillX = new Float32Array(SPILL_N)
+  const spillZ = new Float32Array(SPILL_N)
+  const spillPh = new Float32Array(SPILL_N)
+  const spillRate = new Float32Array(SPILL_N)
+  const spillSize = new Float32Array(SPILL_N)
+  {
+    let s = 20240513
+    const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296)
+    for (let i = 0; i < SPILL_N; i++) {
+      spillX[i] = -0.72 + rnd() * 1.44
+      spillZ[i] = -0.155 + rnd() * 0.075
+      spillPh[i] = rnd()
+      spillRate[i] = 0.80 + rnd() * 0.45
+      spillSize[i] = 0.72 + rnd() * 0.6
+    }
+  }
+
+  // ---- 液位计（外壁视管 + 刻度 + 浮动指示）
+  const sightX = 0.86, sightZ = LZ / 2 + 0.033
+  put(g, new THREE.CylinderGeometry(0.020, 0.020, 0.34, 16), mGlass, sightX, 2.03, sightZ)
+  for (const sy of [1.89, 2.17]) put(g, new THREE.CylinderGeometry(0.026, 0.026, 0.05, 12), mPipe, sightX, sy, sightZ)
+  for (const sy of [1.94, 2.02, 2.10]) put(g, new THREE.BoxGeometry(0.008, 0.006, 0.07), mBright, sightX + 0.046, sy, sightZ)
+  put(g, new THREE.BoxGeometry(0.05, 0.02, 0.10), mBand, LX / 2 - 0.10, 2.03, sightZ)
+  const levelMark = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.026, 12), new THREE.MeshBasicMaterial({ color: 0xffb84d, toneMapped: false }))
+  levelMark.position.set(sightX, 2.00, sightZ)
+  g.add(levelMark)
+
+  // ---- 排料阀（外壁）
+  const vx = 0.45
+  put(g, new THREE.CylinderGeometry(0.030, 0.030, 0.16, 16), mPipe, vx, 1.90, LZ / 2 + 0.08, true).rotation.x = Math.PI / 2
+  put(g, new THREE.BoxGeometry(0.10, 0.10, 0.09), mBand, vx, 1.90, LZ / 2 + 0.17, true)
+  put(g, new THREE.CylinderGeometry(0.012, 0.012, 0.08, 10), mBright, vx, 1.90, LZ / 2 + 0.25).rotation.x = Math.PI / 2
+  put(g, new THREE.TorusGeometry(0.052, 0.009, 6, 20), mWarn, vx, 1.90, LZ / 2 + 0.295)
+  for (let i = 0; i < 3; i++) put(g, new THREE.BoxGeometry(0.012, 0.10, 0.008), mWarn, vx, 1.90, LZ / 2 + 0.295).rotation.z = (i / 3) * Math.PI
+
+  // ---- 铭牌（外壁）
+  const plateMat = new THREE.MeshStandardMaterial({ map: namePlate('精矿槽 C-01', 'Sn 18.6 % · 0.30 m³'), roughness: 0.5, metalness: 0.25 })
+  put(g, new THREE.BoxGeometry(0.28, 0.082, 0.005), plateMat, -0.45, 1.98, LZ / 2 + 0.003)
+
+  world.addPart('concentrate', g, {
+    label: '精矿槽',
+    htmlLabel: '精矿槽 · Sn 18.6 %',
+    anchor: [0.62, 2.46, 1.17],
+  })
+  world.root.add(g)
+
+  // 液面/泡沫随 sim.data.concentrate.level 变化；泡沫翻唇随刮板流量变化
+  world.onFrame((dt, s) => {
+    const A = sim.anim
+    const t = sim.t
+    const Dc = (s || sim).data.concentrate
+    const lvl = clamp(Dc.level / 1000, 0.028, 0.44)
+    const ly = IN_BOT + lvl
+    liquid.position.y = ly
+    liquidMat.opacity = 0.42 + A.foam * 0.44
+    froth.position.y = ly + 0.020
+    // 泡沫面：内沿（靠浮选槽一侧）堆高，叠加轻微起伏，表现被刮板不断推入的泡沫
+    for (let i = 0, n = frothBaseZ.length; i < n; i++) {
+      const z = frothBaseZ[i]
+      const x = frothArr[i * 3]
+      const u = clamp((-z - 0.01) / 0.11, 0, 1)
+      const mound = u * u * (3 - 2 * u) * 0.10
+      frothArr[i * 3 + 1] = (mound + 0.010 * Math.sin(x * 5.4 + t * 1.5) + 0.008 * Math.sin(z * 9.0 - t * 1.9)) * A.foam
+    }
+    frothGeo.attributes.position.needsUpdate = true
+    frothMat.opacity = Math.min(1, A.foam * 1.6) * 0.96
+    tex.offset.y -= dt * (0.012 + A.foam * 0.05)
+    tex.offset.x += dt * 0.006
+    levelMark.position.y = ly
+    levelMark.visible = A.foam > 0.02
+
+    // 刮板流量 → 翻过唇口的泡沫量
+    const flow = clamp(A.scraperSpeed / 1.745)
+    const spillOn = A.foam * (0.12 + 0.88 * flow)
+    const vis = spillOn > 0.02
+    curtain.visible = vis
+    tongue.visible = vis
+    curtainMat.opacity = Math.min(1, spillOn) * 0.85
+    curtainTex.offset.y -= dt * (0.12 + 0.55 * flow)
+    // 泡沫帘下沿随液面升降，上沿固定在唇口卷边
+    const CREST = 2.335
+    const ch = clamp((CREST - ly) / 0.32, 0.10, 1.12)
+    curtain.scale.y = ch
+    curtain.position.y = CREST - 0.16 * ch
+    spill.visible = vis
+    if (vis) {
+      // 落料终点取内沿泡沫堆的表面，避免泡沫团穿过泡沫面
+      const surfY = ly + 0.02 + 0.088 * clamp(A.foam)
+      const top = 2.345, drop = Math.max(0.04, top - surfY)
+      for (let i = 0; i < SPILL_N; i++) {
+        const ph = (t * (0.50 + 0.28 * flow) * spillRate[i] + spillPh[i]) % 1
+        spillDummy.position.set(
+          spillX[i] + Math.sin(t * 1.1 + i * 2.3) * 0.012,
+          top - ph * drop,
+          spillZ[i] + ph * 0.025,
+        )
+        spillDummy.scale.setScalar(spillSize[i] * (0.55 + 0.55 * Math.sin(ph * Math.PI)) * (0.7 + 0.5 * spillOn))
+        spillDummy.rotation.set(ph * 3 + i, i * 0.7, ph * 2)
+        spillDummy.updateMatrix()
+        spill.setMatrixAt(i, spillDummy.matrix)
+      }
+      spill.instanceMatrix.needsUpdate = true
+      spillMat.opacity = 0.35 + 0.55 * spillOn
+    }
+  })
+}
+
+

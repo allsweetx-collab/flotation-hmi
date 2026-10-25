@@ -29,17 +29,18 @@ node tools/shot.mjs out/<你的名字>.html out/x --steps steps.json   # steps: 
 | 泡沫层 | 液面之上，厚度视觉 0.02–0.075（数据 0–42 mm） |
 | 支撑腿/平台 | 腿 y 0→0.55，四角；格栅检修平台在槽体周围 y≈0.04–0.58 |
 | 气泵 | 基座中心约 (-2.02, 0, -0.35)，总高约 1.1，出口软管接槽体左下 |
-| 伸缩机构立柱 | 约 (-0.88, 0.55, -0.78)，导轨 y 0.55→3.5；滑块 y 2.35→3.5 |
-| 自动吸管 | 从伸缩机构末端（约 (-0.75, 2.75, 0.2)）斜插入液面约 (-0.62, 2.16, 0.35)，管口浸入 150–420 mm |
+| 伸缩机构立柱 | 立柱中心 (-1.33, 1.02→3.30, 1.15)，位于浮选槽前侧走道；滑座 y 2.42→2.92（行程 0.50） |
+| 自动吸管 | 伸缩臂自 (-1.33, 2.64→3.14, 1.40) 伸向腕点 (-0.20, 2.60→2.54, 1.17)；吸管竖直向下，管口 y≈1.90–1.97，浸入精矿溜槽液面 195–255 mm |
 | 视觉相机 | 头部中心约 (0.62, 3.12, -0.18)，镜头朝下对准 (0.3, 2.2, 0.1) 泡沫；L 型支架接槽体后右角 |
 | 打光装置 | 环形光源随相机，光锥照到泡沫面 |
-| 刮板 | 轴沿 X 向，位于 (0, 2.47, 0.30)，跨度约 2.3 m；叶片扫过泡沫层，前方 z≈0.9 有接矿溜槽 |
+| 刮板 | 轴沿 X 向，位于 (0, 2.47, 0.62)（靠前唇口一侧，紧邻精矿槽），跨度约 2.3 m；叶片扫过泡沫层，把泡沫推过前唇口直接翻入精矿溜槽（无独立溜槽/下料管） |
+| 精矿槽 | 通长溜槽：外廓 2.06 长 × 0.36 宽，x ∈ [-1.03, 1.03]，z ∈ [0.99, 1.35]（紧贴浮选槽前壁 z=0.85），槽体 y 1.78→2.26，槽口加强圈顶 2.29；支架托臂挂在浮选槽前壁；液面随泡沫量 1.88→2.20 |
 | 药剂阀 | 约 (-1.16, 1.52, 0.35)，手轮 + 药剂管插入槽内 |
 | 电气柜 | 柜体中心 (2.15, 0, 0.27)，外形 1.0 w × 1.92 h × 0.56 d，柜门朝 +Z；门面 z≈0.56 |
 | 变频器 | 柜内上部（约 y 1.30），面板朝 +Z；PLC 在柜内下部（约 y 0.64），模块沿 X 排列 |
 | 锡矿石 | 从 (0.15, 3.4, 0.15) 落入液面 |
 
-默认相机：position (5.5, 3.7, 7.7)，target (-0.05, 1.42, 0.02)，FOV 35。重要观察区为画面中央约 60% 宽度。
+默认相机：position (3.4, 5.75, 6.0)，target (-0.05, 1.5, 0.02)，FOV 35。重要观察区为画面中央约 60% 宽度。
 
 ## 2. 代码接口
 
@@ -93,6 +94,7 @@ sim.data = {
   pump:{pressure kPa,flow m³/h,current A,temp ℃,hours h,vibration mm/s,status},
   telescope:{stroke mm,speed mm/s,pressure bar,limit,cycles,immersion mm,flow L/min,density g/cm³,solid %,nextCycle s,status},
   pipe:{diameter mm,material,immersion mm,velocity m/s,clog,density,solid,rep,status},
+  concentrate:{level mm,volume m³,mass kg,grade %,recovery %,density g/cm³,temp ℃,froth mm,inflow kg/min,status},
   vfd:{setHz,outHz,current,dcBus,heat,status,load,energy,thd,faults[],drive},
   plc:{cpu,scan,io,comm,rackTemp,mode,interlock,version,alarms[{time,code,text}]},
   valve:{opening %,medium,flow m³/h,impact},
@@ -103,7 +105,7 @@ sim.data = {
 动画状态一律来自 `sim.anim` / `sim.process`；点击只允许通过 `sim.pulseOf(id)` 做 1–2 s 的“响应”加速/指针抖动，**不得改变运行/停止状态**（流程状态机控制）。
 
 ### 2.3 每个部件必须使用的 partId
-`cell`, `camera`, `light`, `scraper`, `valve`, `pump`, `telescopic`, `suctionPipe`, `vfd`, `plc`, `ore`（`ore` pickable:false 也可）。
+`cell`, `camera`, `light`, `scraper`, `valve`, `pump`, `telescopic`, `suctionPipe`, `concentrate`, `vfd`, `plc`, `ore`（`ore` pickable:false 也可）。
 
 ## 3. 美术基准（重要，截图必须达到）
 - 深色工业风：炭黑/深灰背景，冷白主光（0xd8e6ff）+ 暖色补光（0xffc99a）+ 青绿状态色 `#3fe0c5`、琥珀 `#ffb84d`、报警红 `#ff5a4d`。
@@ -117,7 +119,7 @@ sim.data = {
 ## 4. 流程与联动
 `sim.process` 状态机由根级驱动；部件只读。要求：
 - IDLE/FED/DOSED：气泵、刮板、伸缩、吸管、视觉数据均为待机（0 值/待机态）。
-- FLOTATING：气泵 → 联轴器旋转、压力表指针抬升并随 `sim.data.pump.pressure` 微动、壳体极小幅高频振动；伸缩机构按 5.6 s 周期运动；吸管随动且保持与夹持爪刚性连接、不穿模、管口始终在液面下；刮板旋转；泡沫从无到有 ~2 s 增厚并按正弦波动；相机 LED 快速闪烁、视觉光锥增强。
+- FLOTATING：气泵 → 联轴器旋转、压力表指针抬升并随 `sim.data.pump.pressure` 微动、壳体极小幅高频振动；伸缩机构按 5.6 s 周期运动；吸管随动且保持与夹持爪刚性连接、不穿模、管口始终在精矿溜槽液面下；刮板旋转把泡沫推过前唇口直接翻入紧贴槽体的精矿溜槽（翻唇泡沫帘 + 落料泡沫团），泡沫层表面持续有气泡浮出、鼓胀、破裂并从无到有 ~2 s 增厚；相机 LED 快速闪烁、视觉光锥增强。
 - FEEDING：矿石下落 ~1.5 s，0.7 处触发溅射/液面扰动。
 - DOSING：阀门手轮旋转、药剂注入细流、液面/矿浆轻微色调变化。
 - 复位：泡沫淡出、泵/刮板/伸缩停止、吸管抬起，所有件回待机。

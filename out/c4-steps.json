@@ -1,0 +1,8 @@
+[
+  { "wait": 1.0, "out": "out/c4_idle.png" },
+  { "js": "__HMI.flow('feed')", "wait": 2.4, "out": "out/c4_1.png" },
+  { "js": "__HMI.flow('dose')", "wait": 2.4, "out": "out/c4_2.png" },
+  { "js": "__HMI.flow('flotate')", "wait": 4.5, "out": "out/c4_run.png" },
+  { "js": "__HMI.view(6, 18, 5.6)", "wait": 1.4, "out": "out/c4_close.png" },
+  { "js": "__HMI.select('telescopic')", "wait": 1.4, "out": "out/c4_tel.png" }
+]

@@ -1,0 +1,7 @@
+[
+  { "js": "__HMI.setCamera([-0.10,4.30,4.55],[-0.05,2.05,0.95])", "wait": 1.2, "out": "out/c6_lip.png" },
+  { "js": "__HMI.setCamera([-3.30,3.45,3.25],[-0.15,2.30,0.90])", "wait": 1.2, "out": "out/c6_left.png" },
+  { "js": "__HMI.setCamera([1.95,4.55,3.55],[0.05,2.30,0.80])", "wait": 1.2, "out": "out/c6_right.png" },
+  { "js": "__HMI.view(0,58,9.2)", "wait": 1.2, "out": "out/c6_top.png" },
+  { "js": "__HMI.setCamera([-0.60,2.95,2.60],[-0.20,2.20,1.10])", "wait": 1.2, "out": "out/c6_mouth.png" }
+]

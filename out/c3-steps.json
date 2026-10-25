@@ -1,0 +1,10 @@
+[
+  { "wait": 1.0, "out": "out/c3_idle.png" },
+  { "js": "__HMI.select('concentrate')", "wait": 1.6, "out": "out/c3_focus.png" },
+  { "js": "__HMI.select(null); __HMI.flow('feed')", "wait": 2.4, "out": "out/c3_fed.png" },
+  { "js": "__HMI.flow('dose')", "wait": 2.4, "out": "out/c3_dosed.png" },
+  { "js": "__HMI.flow('flotate')", "wait": 4.5, "out": "out/c3_run.png" },
+  { "js": "__HMI.view(28, 52, 8.4)", "wait": 1.6, "out": "out/c3_top.png" },
+  { "js": "__HMI.view(6, 16, 6.6)", "wait": 1.6, "out": "out/c3_front.png" },
+  { "js": "__HMI.view(52, 22, 7.0)", "wait": 1.6, "out": "out/c3_side.png" }
+]

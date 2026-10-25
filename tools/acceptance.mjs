@@ -22,6 +22,9 @@ page.on('pageerror', (e) => errors.push(e.message))
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
 const S = () => page.evaluate(() => window.__HMI.stats())
 const sleep = (ms) => page.waitForTimeout(ms)
+// 低帧率下动画推进慢于墙钟，按状态轮询而不是固定等待，避免误报时序失败
+const waitProcess = (name, timeout = 20000) =>
+  page.waitForFunction((n) => window.__HMI?.stats().process === n, name, { timeout }).catch(() => {})
 
 try {
   await page.goto(pathToFileURL(PAGE).href, { waitUntil: 'load', timeout: 120000 })
@@ -49,7 +52,8 @@ try {
 
   // flow: feed
   await page.getByRole('button', { name: /投入锡矿石/ }).first().click()
-  await sleep(2100)
+  await waitProcess('FED')
+  await sleep(200)
   ok('投料完成 -> FED', (await S()).process === 'FED')
   await page.screenshot({ path: `${OUT}/02_fed.png` })
   const fedText = await page.locator('#panel-left').innerText()
@@ -57,7 +61,8 @@ try {
 
   // flow: dose
   await page.getByRole('button', { name: /加药/ }).first().click()
-  await sleep(2600)
+  await waitProcess('DOSED')
+  await sleep(200)
   ok('加药完成 -> DOSED', (await S()).process === 'DOSED')
   await page.screenshot({ path: `${OUT}/03_dosed.png` })
   const dosedText = await page.locator('#panel-left').innerText()
@@ -65,6 +70,7 @@ try {
 
   // flow: flotation
   await page.getByRole('button', { name: /启动浮选/ }).first().click()
+  await waitProcess('FLOTATING')
   await sleep(3500)
   const stFloat = await S()
   ok('启动浮选 -> FLOTATING', stFloat.process === 'FLOTATING')
@@ -73,7 +79,7 @@ try {
   await page.screenshot({ path: `${OUT}/04_flotating.png` })
 
   // part panel mapping
-  const parts = ['cell', 'camera', 'light', 'scraper', 'pump', 'telescopic', 'suctionPipe', 'vfd', 'plc', 'valve']
+  const parts = ['cell', 'camera', 'light', 'scraper', 'pump', 'telescopic', 'suctionPipe', 'concentrate', 'vfd', 'plc', 'valve']
   const expect = {
     cell: ['浮选槽', '液位', '充气量', 'pH', '泡沫'],
     camera: ['相机', '帧率', '曝光', '焦距', '气泡'],
@@ -82,6 +88,7 @@ try {
     pump: ['气泵', '压力', '流量', '电流', '振动'],
     telescopic: ['伸缩', '行程', '速度', '限位', '循环'],
     suctionPipe: ['吸管', '管径', '材质', '浸入', '流速', '堵塞'],
+    concentrate: ['精矿槽', '液位', '品位', '回收率', '容积'],
     vfd: ['变频器', '频率', '电流', '直流母线', '散热', '负载'],
     plc: ['PLC', 'CPU', '扫描周期', 'I/O', '联锁', '报警'],
     valve: ['阀', '开度', '介质', '流量'],
@@ -97,7 +104,11 @@ try {
 
   // real pointer click picks a part
   await page.evaluate(() => __HMI.select(null))
-  const cellPt = await page.evaluate(() => __HMI.screenOf('cell'))
+  // 取浮选槽前右上部外壁：避开前方精矿槽与运动中伸缩臂的投影
+  const cellPt = await page.evaluate(() => {
+    const v = new __HMI.THREE.Vector3(0.85, 2.30, 0.85).project(__HMI.camera)
+    return { x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight }
+  })
   if (cellPt) { await page.mouse.click(cellPt.x, cellPt.y); await sleep(500) }
   ok('真实鼠标点击选中浮选槽', (await S()).selected === 'cell')
 

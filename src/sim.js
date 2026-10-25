@@ -59,6 +59,7 @@ export function createSim() {
       pump: { pressure: 0, flow: 0, current: 0, temp: 32.4, hours: 1846, vibration: 0, status: '待机' },
       telescope: { stroke: 0, speed: 0, pressure: 0, limit: '中间', cycles: 0, immersion: 0, flow: 0, density: 1.42, solid: 34, nextCycle: 0, status: '待机' },
       pipe: { diameter: 50, material: '316L 不锈钢', immersion: 0, velocity: 0, clog: '正常', density: 1.42, solid: 34, rep: 92, status: '待机' },
+      concentrate: { level: 0, volume: 0, mass: 0, grade: 0, recovery: 0, density: 1.38, temp: 27.8, froth: 0, inflow: 0, status: '待机' },
       vfd: { setHz: 37.5, outHz: 0, current: 0, dcBus: 538, heat: 35.2, status: '待机', load: 0, energy: 12.4, thd: '3.1 %', faults: [{ code: 'F-021', text: '等待启动命令' }], drive: '刮板电机' },
       plc: {
         cpu: 31, scan: 8.2, io: 42, comm: '正常', rackTemp: 33.4, mode: '自动', interlock: '正常', version: 'V2.4.1',
@@ -243,13 +244,13 @@ export function createSim() {
     D.pump.status = pumpOn > 0.02 ? '运行' : '待机'
 
     // ---- telescopic + suction ------------------------------------------------
-    const strokeMM = A.telescopeStroke * (860 - 0) + 0
+    const strokeMM = A.telescopeStroke * 700
     D.telescope.stroke = strokeMM
-    D.telescope.speed = run ? Math.abs(Math.sin(A.telescopePhase * Math.PI * 2)) * 145 : 0
+    D.telescope.speed = run ? Math.abs(Math.sin(A.telescopePhase * Math.PI * 2)) * 125 : 0
     D.telescope.pressure = run ? 58 + A.telescopeStroke * 9 : 0
     D.telescope.limit = !run ? '中间' : A.telescopeStroke > 0.82 ? '上限位' : A.telescopeStroke < 0.18 ? '下限位' : '中间'
     D.telescope.cycles = 1204 + Math.floor(sim.runtime / 5.6)
-    D.telescope.immersion = 180 + strokeMM * 0.28
+    D.telescope.immersion = 195 + A.telescopeStroke * 60
     D.telescope.flow = pumpOn * (18.4 + noise(t, 19.9, 0.4, 0.6))
     D.telescope.density = 1.42 + A.liquidTint * 0.01 + noise(t, 20.3, 0.004, 0.4)
     D.telescope.solid = 34 + A.liquidTint * 1.2 + noise(t, 20.9, 0.4, 0.3)
@@ -262,6 +263,19 @@ export function createSim() {
     D.pipe.solid = D.telescope.solid
     D.pipe.clog = '正常'
     D.pipe.status = run ? '运行' : '待机'
+
+    // ---- concentrate tank (前方精矿槽) ---------------------------------------
+    const Dc = D.concentrate
+    Dc.inflow = A.foam * (14.2 + noise(t, 29.1, 0.8, 0.4))
+    Dc.level = 40 + A.foam * (320 + noise(t, 29.3, 6, 0.35))
+    Dc.volume = Dc.level / 1000 * 0.637
+    Dc.density = 1.38 + A.liquidTint * 0.04 + noise(t, 29.5, 0.004, 0.4)
+    Dc.mass = Dc.volume * Dc.density * 1000
+    Dc.grade = A.foam * (18.6 + noise(t, 29.7, 0.35, 0.3))
+    Dc.recovery = A.foam * (86.4 + noise(t, 30.0, 1.8, 0.25))
+    Dc.temp = 27.8 + noise(t, 30.3, 0.15, 0.33)
+    Dc.froth = A.foam * (36 + noise(t, 30.6, 3, 0.4))
+    Dc.status = run ? '接收中' : '待机'
 
     // ---- VFD -----------------------------------------------------------------
     D.vfd.outHz = run ? 37.2 + noise(t, 22.1, 0.15, 0.8) : 0
