@@ -1,0 +1,5 @@
+[
+  { "js": "__HMI.flow('feed')", "wait": 2.8, "out": "out/_mock_f1.png" },
+  { "js": "(async()=>{for(let i=0;i<40;i++){if(__HMI.flow('dose'))return;await new Promise(r=>setTimeout(r,200))}})()", "wait": 3.4, "out": "out/_mock_f2.png" },
+  { "js": "(async()=>{for(let i=0;i<40;i++){if(__HMI.flow('flotate'))return;await new Promise(r=>setTimeout(r,200))}})()", "wait": 2.2, "out": "out/_mock_flow.png" }
+]

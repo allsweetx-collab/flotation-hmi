@@ -1,0 +1,12 @@
+[
+  {"js":"for(const id of ['camera','light','scraper','pump','telescopic','suctionPipe','vfd','plc','cabinet']) { const p=__HMI.world.parts.get(id); if(p) p.group.visible=false }","wait":0.8,"out":"out/iso2_all.png"},
+  {"js":"__HMI.setCamera([0.45,3.35,3.35],[-0.05,2.2,0.05]);__HMI.flow('feed')","wait":0.8,"out":"out/iso2_feed.png"},
+  {"js":"","wait":1.3,"out":"out/iso2_fed.png"},
+  {"js":"__HMI.flow('dose');__HMI.setCamera([0.6,3.0,2.6],[-0.35,2.15,0.3])","wait":1.0,"out":"out/iso2_dose.png"},
+  {"js":"","wait":1.6,"out":"out/iso2_dosed.png"},
+  {"js":"__HMI.flow('flotate');__HMI.setCamera([0.45,3.35,3.35],[-0.05,2.2,0.05])","wait":2.6,"out":"out/iso2_float_top.png"},
+  {"js":"__HMI.setCamera([5.5,3.7,7.7],[-0.05,1.42,0.02])","wait":1.2,"out":"out/iso2_float.png"},
+  {"js":"__HMI.setCamera([-2.6,2.1,2.3],[-1.15,1.65,0.35])","wait":1.2,"out":"out/iso2_valve.png"},
+  {"js":"__HMI.setCamera([1.9,2.75,3.4],[0.35,2.2,0.35])","wait":1.2,"out":"out/iso2_graze.png"},
+  {"js":"__HMI.flow('reset')","wait":1.6,"out":"out/iso2_reset.png"}
+]

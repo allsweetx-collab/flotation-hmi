@@ -1,0 +1,15 @@
+[
+  { "js": "__HMI.flow('feed')", "wait": 2.0, "out": "out/f_1fed.png" },
+  { "js": "__HMI.flow('dose')", "wait": 2.4, "out": "out/f_2dosed.png" },
+  { "js": "__HMI.flow('flotate')", "wait": 3.0, "out": "out/f_3float.png" },
+  { "js": "__HMI.select('cell')", "wait": 0.8, "out": "out/f_cell.png" },
+  { "js": "__HMI.select('camera')", "wait": 0.8, "out": "out/f_camera.png" },
+  { "js": "__HMI.select('light')", "wait": 0.8, "out": "out/f_light.png" },
+  { "js": "__HMI.select('scraper')", "wait": 0.8, "out": "out/f_scraper.png" },
+  { "js": "__HMI.select('pump')", "wait": 0.8, "out": "out/f_pump.png" },
+  { "js": "__HMI.select('telescopic')", "wait": 0.8, "out": "out/f_telescopic.png" },
+  { "js": "__HMI.select('suctionPipe')", "wait": 0.8, "out": "out/f_pipe.png" },
+  { "js": "__HMI.select('vfd')", "wait": 0.8, "out": "out/f_vfd.png" },
+  { "js": "__HMI.select('plc')", "wait": 0.8, "out": "out/f_plc.png" },
+  { "js": "__HMI.select('valve')", "wait": 0.8, "out": "out/f_valve.png" }
+]

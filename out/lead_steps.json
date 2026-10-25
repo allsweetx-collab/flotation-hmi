@@ -1,0 +1,12 @@
+[
+  { "js": "__HMI.select('pump')", "wait": 1.2, "out": "out/sel_pump.png" },
+  { "js": "__HMI.select('cell')", "wait": 1.2, "out": "out/sel_cell.png" },
+  { "js": "__HMI.xray(true)", "wait": 1.6, "out": "out/xray.png" },
+  { "js": "__HMI.select('vfd')", "wait": 1.4, "out": "out/xray_vfd.png" },
+  { "js": "__HMI.select('plc')", "wait": 1.4, "out": "out/xray_plc.png" },
+  { "js": "__HMI.xray(false); __HMI.cut(0.55)", "wait": 1.6, "out": "out/cut.png" },
+  { "js": "__HMI.cut(0); __HMI.flow('feed')", "wait": 0.8, "out": "out/feed.png" },
+  { "js": "__HMI.flow('dose')", "wait": 1.2, "out": "out/dose.png" },
+  { "js": "__HMI.flow('flotate')", "wait": 3.2, "out": "out/float.png" },
+  { "js": "__HMI.select('cell')", "wait": 1.0, "out": "out/float_cell.png" }
+]

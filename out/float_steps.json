@@ -1,0 +1,9 @@
+[
+  {"js":"__HMI.flow('feed')","wait":2.2,"out":"out/r2_fed.png"},
+  {"js":"__HMI.flow('dose')","wait":2.8,"out":"out/r2_dosed.png"},
+  {"js":"__HMI.select(null); __HMI.flow('flotate')","wait":4,"out":"out/r2_float.png"},
+  {"js":"__HMI.select('pump')","wait":0.8,"out":"out/r2_pump.png"},
+  {"js":"__HMI.select('telescopic')","wait":0.8,"out":"out/r2_tele.png"},
+  {"js":"__HMI.select('camera'); __HMI.view(8,18,4.2)","wait":0.8,"out":"out/r2_cam.png"},
+  {"js":"__HMI.view(4,38,6.5)","wait":0.8,"out":"out/r2_top.png"}
+]

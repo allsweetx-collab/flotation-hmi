@@ -1,0 +1,9 @@
+[
+  {"js":"__HMI.flow('feed')","wait":2.0,"out":"out/z1.png"},
+  {"js":"__HMI.flow('dose')","wait":2.4,"out":"out/z2.png"},
+  {"js":"__HMI.flow('flotate')","wait":3.2,"out":"out/z3.png"},
+  {"js":"__HMI.cut(0.55)","wait":0.8,"out":"out/z_cut_float.png"},
+  {"js":"__HMI.select('cell')","wait":0.6,"out":"out/z_cut_cell.png"},
+  {"js":"__HMI.cut(0)","wait":0.5,"out":"out/z4.png"},
+  {"js":"__HMI.flow('reset')","wait":1.5,"out":"out/z_reset.png"}
+]

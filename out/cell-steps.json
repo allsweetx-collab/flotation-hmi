@@ -1,0 +1,13 @@
+[
+  {"js":"__HMI.setCamera([3.6,4.5,4.4],[-0.05,1.9,0.1])","wait":1.5,"out":"out/cell_top.png"},
+  {"js":"__HMI.setCamera([5.5,3.7,7.7],[-0.05,1.42,0.02]);__HMI.flow('feed')","wait":0.9,"out":"out/cell_feed.png"},
+  {"js":"","wait":1.4,"out":"out/cell_fed.png"},
+  {"js":"__HMI.flow('dose')","wait":1.0,"out":"out/cell_dose.png"},
+  {"js":"","wait":1.6,"out":"out/cell_dosed.png"},
+  {"js":"__HMI.flow('flotate')","wait":1.1,"out":"out/cell_float1.png"},
+  {"js":"","wait":2.6,"out":"out/cell_float.png"},
+  {"js":"__HMI.setCamera([3.2,5.0,3.0],[-0.05,2.05,0.05])","wait":1.4,"out":"out/cell_float_top.png"},
+  {"js":"__HMI.setCamera([-2.6,2.1,2.3],[-1.15,1.65,0.35])","wait":1.2,"out":"out/cell_valve.png"},
+  {"js":"__HMI.setCamera([2.6,2.6,4.6],[0.0,1.6,0.3])","wait":1.2,"out":"out/cell_side.png"},
+  {"js":"__HMI.flow('reset')","wait":1.6,"out":"out/cell_reset.png"}
+]

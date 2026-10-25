@@ -1,0 +1,10 @@
+[
+  {"js":"__HMI.setCamera([0.45,3.35,3.35],[-0.05,2.2,0.05])","wait":1.2,"out":"out/dbg_liquid.png"},
+  {"js":"__HMI.world.parts.get('light').group.visible=false","wait":1.0,"out":"out/dbg_liquid_nolight.png"},
+  {"js":"__HMI.world.parts.get('light').group.visible=true;__HMI.flow('feed')","wait":2.0,"out":"out/dbg_fed.png"},
+  {"js":"__HMI.flow('dose')","wait":2.4,"out":"out/dbg_dosed.png"},
+  {"js":"__HMI.flow('flotate')","wait":2.8,"out":"out/dbg_foam.png"},
+  {"js":"__HMI.world.parts.get('light').group.visible=false","wait":1.0,"out":"out/dbg_foam_nolight.png"},
+  {"js":"__HMI.setCamera([0.7,2.62,3.0],[-0.05,2.22,0.02])","wait":1.0,"out":"out/dbg_grazing.png"},
+  {"js":"__HMI.world.parts.get('light').group.visible=true;__HMI.flow('reset')","wait":1.6,"out":"out/dbg_reset.png"}
+]

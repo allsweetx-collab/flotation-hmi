@@ -1,0 +1,18 @@
+[
+  {"js":"__HMI.setCamera([0.45,3.35,3.35],[-0.05,2.2,0.05])","wait":1.0,"out":"out/p_idle_top.png"},
+  {"js":"__HMI.flow('feed')","wait":0.95,"out":"out/p_feed.png"},
+  {"js":"","wait":0.18,"out":"out/p_splash.png"},
+  {"js":"","wait":1.2,"out":"out/p_fed.png"},
+  {"js":"__HMI.flow('dose');__HMI.setCamera([0.75,3.05,2.4],[-0.5,2.2,0.35])","wait":1.1,"out":"out/p_dose.png"},
+  {"js":"","wait":1.5,"out":"out/p_dosed.png"},
+  {"js":"__HMI.flow('flotate');__HMI.setCamera([0.45,3.35,3.35],[-0.05,2.2,0.05])","wait":0.9,"out":"out/p_float1.png"},
+  {"js":"","wait":2.6,"out":"out/p_float_top.png"},
+  {"js":"__HMI.setCamera([2.1,3.3,3.0],[0.15,2.15,0.1])","wait":1.2,"out":"out/p_foam_close.png"},
+  {"js":"__HMI.setCamera([5.5,3.7,7.7],[-0.05,1.42,0.02])","wait":1.2,"out":"out/p_float_default.png"},
+  {"js":"__HMI.setCamera([-2.55,2.05,2.25],[-1.15,1.68,0.35])","wait":1.2,"out":"out/p_valve.png"},
+  {"js":"__HMI.setCamera([-2.2,2.5,1.1],[-1.1,1.75,0.3])","wait":1.0,"out":"out/p_valve2.png"},
+  {"js":"__HMI.setCamera([5.5,3.7,7.7],[-0.05,1.42,0.02]);__HMI.select('cell')","wait":1.2,"out":"out/p_selected.png"},
+  {"js":"__HMI.select(null);__HMI.cut(0.55)","wait":1.2,"out":"out/p_cut.png"},
+  {"js":"__HMI.cut(0);__HMI.xray(true)","wait":1.2,"out":"out/p_xray.png"},
+  {"js":"__HMI.xray(false);__HMI.flow('reset')","wait":1.8,"out":"out/p_reset.png"}
+]

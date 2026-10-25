@@ -1,0 +1,10 @@
+[
+  {"js":"for(const id of ['camera','light','scraper','pump','telescopic','suctionPipe','vfd','plc','cabinet']) { const p=__HMI.world.parts.get(id); if(p) p.group.visible=false }","wait":1.0,"out":"out/iso_all.png"},
+  {"js":"__HMI.setCamera([0.45,3.35,3.35],[-0.05,2.2,0.05])","wait":1.0,"out":"out/iso_top.png"},
+  {"js":"__HMI.flow('feed')","wait":2.0,"out":"out/iso_fed.png"},
+  {"js":"__HMI.flow('dose')","wait":1.2,"out":"out/iso_dose.png"},
+  {"js":"__HMI.flow('flotate');__HMI.setCamera([5.5,3.7,7.7],[-0.05,1.42,0.02])","wait":3.0,"out":"out/iso_float.png"},
+  {"js":"__HMI.setCamera([0.45,3.35,3.35],[-0.05,2.2,0.05])","wait":1.2,"out":"out/iso_float_top.png"},
+  {"js":"__HMI.setCamera([-2.6,2.1,2.3],[-1.15,1.65,0.35])","wait":1.2,"out":"out/iso_valve.png"},
+  {"js":"__HMI.flow('reset')","wait":1.6,"out":"out/iso_reset.png"}
+]

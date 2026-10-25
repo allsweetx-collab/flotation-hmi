@@ -1,0 +1,9 @@
+[
+  {"js":"__HMI.setCamera([0.45,3.35,3.35],[-0.05,2.2,0.05]);__HMI.flow('feed')","wait":2.0,"out":"out/q_fed.png"},
+  {"js":"__HMI.flow('dose')","wait":2.4,"out":"out/q_dosed.png"},
+  {"js":"__HMI.flow('flotate')","wait":3.0,"out":"out/q_float_light.png"},
+  {"js":"window.__cellLight = null; __HMI.scene.traverse(o=>{ if(o.isPointLight && Math.abs(o.position.y-2.28)<0.01) __cellLight = o }); __cellLight.intensity = 0","wait":1.0,"out":"out/q_float_nocell.png"},
+  {"js":"__cellLight.position.set(0,3.15,0.05); __cellLight.intensity = 2.4; __cellLight.distance = 4.0","wait":1.0,"out":"out/q_float_light_up.png"},
+  {"js":"__HMI.setCamera([5.5,3.7,7.7],[-0.05,1.42,0.02])","wait":1.2,"out":"out/q_default_lightup.png"},
+  {"js":"__HMI.setCamera([0.45,3.35,3.35],[-0.05,2.2,0.05]); __cellLight.position.set(0,2.65,0.05); __cellLight.intensity=1.0; __cellLight.distance=3.0","wait":1.2,"out":"out/q_float_light_mid.png"}
+]

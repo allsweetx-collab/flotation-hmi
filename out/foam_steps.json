@@ -1,0 +1,7 @@
+[
+  {"js":"__HMI.flow('feed')","wait":2.2,"out":"out/tmp1.png"},
+  {"js":"__HMI.flow('dose')","wait":2.8,"out":"out/tmp2.png"},
+  {"js":"__HMI.flow('flotate')","wait":3.5,"out":"out/tmp3.png"},
+  {"js":"__HMI.view(0,58,5.0)","wait":0.8,"out":"out/foam_top.png"},
+  {"js":"__HMI.view(90,35,4.5)","wait":0.8,"out":"out/foam_side.png"}
+]

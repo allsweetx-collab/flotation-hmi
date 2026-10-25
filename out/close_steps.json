@@ -1,0 +1,8 @@
+[
+  {"js":"__HMI.setCamera([-3.3,1.7,1.7],[-1.85,0.55,-0.3]); __HMI.select('pump')","wait":0.6,"out":"out/c_pump.png"},
+  {"js":"__HMI.setCamera([1.5,3.3,2.7],[-0.75,2.7,0.15]); __HMI.select('telescopic')","wait":0.6,"out":"out/c_tele.png"},
+  {"js":"__HMI.setCamera([1.9,3.4,1.2],[0.45,2.95,-0.18]); __HMI.select('camera')","wait":0.6,"out":"out/c_cam.png"},
+  {"js":"__HMI.setCamera([1.7,3.2,2.6],[0,2.55,0.32]); __HMI.select('scraper')","wait":0.6,"out":"out/c_scraper.png"},
+  {"js":"__HMI.setCamera([-2.6,2.2,2.0],[-1.16,1.55,0.35]); __HMI.select('valve')","wait":0.6,"out":"out/c_valve.png"},
+  {"js":"__HMI.xray(true); __HMI.setCamera([3.6,1.7,2.6],[2.15,1.15,0.55]); __HMI.select('vfd')","wait":0.7,"out":"out/c_vfd.png"}
+]

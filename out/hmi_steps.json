@@ -1,0 +1,12 @@
+[
+  { "js": "__HMI.select('cell')", "wait": 1.2, "out": "out/hmi_cell.png" },
+  { "js": "__HMI.select('camera')", "wait": 1.2, "out": "out/hmi_camera.png" },
+  { "js": "__HMI.select('light')", "wait": 1.2, "out": "out/hmi_light.png" },
+  { "js": "__HMI.select('scraper')", "wait": 1.2, "out": "out/hmi_scraper.png" },
+  { "js": "__HMI.select('pump')", "wait": 1.2, "out": "out/hmi_pump.png" },
+  { "js": "__HMI.select('telescopic')", "wait": 1.2, "out": "out/hmi_telescopic.png" },
+  { "js": "__HMI.select('suctionPipe')", "wait": 1.2, "out": "out/hmi_suction.png" },
+  { "js": "__HMI.select('vfd')", "wait": 1.2, "out": "out/hmi_vfd.png" },
+  { "js": "__HMI.select('plc')", "wait": 1.2, "out": "out/hmi_plc.png" },
+  { "js": "__HMI.select('valve')", "wait": 1.2, "out": "out/hmi_valve.png" }
+]
