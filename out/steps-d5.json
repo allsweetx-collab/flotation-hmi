@@ -1,0 +1,10 @@
+[
+  { "js": "__HMI.flow('feed')", "wait": 1.8, "out": "out/d18_fed.png" },
+  { "js": "__HMI.flow('dose')", "wait": 1.35, "out": "out/d18_dosing.png" },
+  { "js": "__HMI.setCamera([-4.4,3.3,2.4],[-0.5,2.1,0.0])", "wait": 0.4, "out": "out/d18_dosing_side.png" },
+  { "js": "__HMI.setCamera([3.4,5.75,6.0],[-0.05,1.5,0.02])", "wait": 0.7, "out": "out/d18_dosed.png" },
+  { "js": "__HMI.flow('flotate')", "wait": 3.2, "out": "out/d18_float_a.png" },
+  { "js": "", "wait": 0.5, "out": "out/d18_float_b.png" },
+  { "js": "", "wait": 0.5, "out": "out/d18_float_c.png" },
+  { "js": "", "wait": 0.5, "out": "out/d18_float_d.png" }
+]

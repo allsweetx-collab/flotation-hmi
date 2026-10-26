@@ -13,6 +13,7 @@ export function buildExternalB(world) {
 // ---------------------------------------------------------------- helpers
 const Z_AXIS = new THREE.Vector3(0, 0, 1)
 const UP_AXIS = new THREE.Vector3(0, 1, 0)
+const s01 = (x) => { const t = clamp(x); return t * t * (3 - 2 * t) }
 
 function put(parent, geo, mat, x = 0, y = 0, z = 0, shadow = false) {
   const m = new THREE.Mesh(geo, mat)
@@ -437,27 +438,185 @@ function buildScraper(world, sim) {
     put(blade, armGeo, mShaft, ax, -0.105, 0.012, true)
     put(blade, new THREE.BoxGeometry(0.05, 0.045, 0.05), mShaft, ax, -0.058, 0.014)
   }
+  const blades = []
   for (let i = 0; i < 5; i++) {
     const b = blade.clone()
     b.rotation.x = (i / 5) * Math.PI * 2
     rotor.add(b)
+    blades.push(b)
   }
   // 联轴器（在减速箱输出与轴之间，随转子转）
   const coup = put(rotor, GEO.tube(0.048, 0.032, 0.10, 20), mBright, 1.15, 0, 0, true)
   coup.rotation.z = Math.PI / 2
   g.add(rotor)
 
+  // ---- 附着在叶片上的泡沫：叶片从槽底带起泡沫，越过唇口后被甩进精矿槽
+  const CL_PER = 34
+  const clGeo = new THREE.IcosahedronGeometry(0.036, 1)
+  {
+    const p = clGeo.attributes.position
+    const v = new THREE.Vector3()
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i)
+      const h = Math.sin(v.x * 39.7 + v.y * 21.3 + v.z * 17.1) * 43758.5453
+      const f = h - Math.floor(h)
+      const s = 0.62 + f * 0.74
+      p.setXYZ(i, v.x * s, v.y * s * 0.8, v.z * s)
+    }
+    clGeo.computeVertexNormals()
+  }
+  const clMat = new THREE.MeshPhysicalMaterial({
+    map: frothTexture(), color: 0xeee3cb, roughness: 0.96, metalness: 0,
+    sheen: 0.35, sheenColor: 0xd8cbaa, sheenRoughness: 0.85,
+    transparent: true, opacity: 0.97, depthWrite: false, envMapIntensity: 0.45,
+  })
+  const clBaseX = new Float32Array(CL_PER)
+  const clRnd = new Float32Array(CL_PER)
+  const clZ = new Float32Array(CL_PER)
+  const clY = new Float32Array(CL_PER)
+  {
+    let s = 90210
+    const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296)
+    for (let i = 0; i < CL_PER; i++) {
+      clBaseX[i] = -0.85 + (i / (CL_PER - 1)) * 1.70 + (rnd() - 0.5) * 0.040
+      clRnd[i] = rnd()
+      // 沿叶片法向（+Z）分层铺开，形成有厚度、有起伏的泡沫脊，而不是薄薄一排
+      clZ[i] = 0.014 + rnd() * 0.058
+      clY[i] = -0.198 + (rnd() - 0.5) * 0.030
+    }
+  }
+  const clumps = []
+  for (const b of blades) {
+    const im = new THREE.InstancedMesh(clGeo, clMat, CL_PER)
+    im.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+    im.frustumCulled = false
+    im.renderOrder = 4
+    im.visible = false
+    b.add(im)
+    clumps.push(im)
+  }
+
+  // 越过唇口被甩出的泡沫团：按叶片掠过唇口的节拍，从唇口抛进精矿槽
+  // 5 片叶片 × 20 个横向排出位 × 2 层先后错开 = 每波整条唇口一起甩出，层层叠叠形成连贯的泡沫流
+  const FL_N = 200
+  const FL_LANES = 20
+  const FL_SUBS = 2
+  // 甩出的泡沫团单独用更圆润、更浅的网格与材质：飞行中要读作"泡沫块"，而不是棱角分明的碎块
+  const flyGeo = new THREE.IcosahedronGeometry(0.040, 1)
+  {
+    const p = flyGeo.attributes.position
+    const v = new THREE.Vector3()
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i)
+      const h = Math.sin(v.x * 33.1 + v.y * 27.7 + v.z * 15.3) * 43758.5453
+      const f = h - Math.floor(h)
+      const s = 0.84 + f * 0.30
+      p.setXYZ(i, v.x * s, v.y * s * 0.92, v.z * s)
+    }
+    flyGeo.computeVertexNormals()
+  }
+  const flyMat = new THREE.MeshPhysicalMaterial({
+    color: 0xf3e9d2, roughness: 0.98, metalness: 0, sheen: 0.5, sheenColor: 0xe6d8ba,
+    sheenRoughness: 0.8, transparent: true, opacity: 0.96, depthWrite: false, envMapIntensity: 0.5,
+  })
+  const fling = new THREE.InstancedMesh(flyGeo, flyMat, FL_N)
+  fling.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+  fling.frustumCulled = false
+  fling.renderOrder = 5
+  fling.visible = false
+  g.add(fling)
+  const flRnd = new Float32Array(FL_N)
+  {
+    let s = 1337
+    const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296)
+    for (let i = 0; i < FL_N; i++) flRnd[i] = rnd()
+  }
+  {
+    const d0 = new THREE.Object3D()
+    d0.scale.setScalar(0.0001)
+    d0.updateMatrix()
+    for (let i = 0; i < FL_N; i++) fling.setMatrixAt(i, d0.matrix)
+    fling.instanceMatrix.needsUpdate = true
+    // 每团泡沫的明暗略有差别，避免甩出去变成一排死白的球
+    const c = new THREE.Color()
+    for (let i = 0; i < FL_N; i++) {
+      const v = 0.74 + ((i * 37) % 17) / 17 * 0.26
+      c.setRGB(v, v * 0.955, v * 0.865)
+      fling.setColorAt(i, c)
+    }
+    fling.instanceColor.needsUpdate = true
+  }
+
   world.addPart('scraper', g, { label: '刮板机构', htmlLabel: '刮板机构 · 17.6 rpm', anchor: [0.55, 2.92, 0.62] })
   world.root.add(g)
 
   // ---- 动画：叶片按 sim.anim.scraperAngle 匀速旋转；点击脉冲只临时加速，不改运行状态
+  //      旋向为负：叶片在槽底由内向外扫，把泡沫推向前唇口并刮进精矿槽
+  const clDummy = new THREE.Object3D()
   let extra = 0
   world.onFrame((dt) => {
     const A = sim.anim
     const pulse = sim.pulseOf('scraper')
     const boost = A.scraperSpeed > 0.03 ? pulse * pulse * 5.2 : 0
     extra += dt * boost
-    rotor.rotation.x = A.scraperAngle + extra
+    const ang = A.scraperAngle + extra
+    rotor.rotation.x = -ang
+
+    // 叶片上的泡沫：从槽底接触泡沫带开始出现，一直挂到叶片越过前唇口（ψ≈π/2）之后，
+    // 再被甩离；保证叶片在唇口最显眼的位置是挂满泡沫的，与精矿槽内的落料泡沫衔接
+    const foamV = clamp(A.foam)
+    const TAU = Math.PI * 2
+    for (let i = 0; i < 5; i++) {
+      const im = clumps[i]
+      let psi = (ang - (i / 5) * TAU) % TAU
+      if (psi < 0) psi += TAU
+      const on = foamV > 0.03 && psi > 0.02 && psi < 1.96
+      im.visible = on
+      if (!on) continue
+      const rise = s01((psi - 0.02) / 0.24)
+      const fling = 1 - s01((psi - 1.58) / 0.34)
+      const k = foamV * rise * fling
+      for (let j = 0; j < CL_PER; j++) {
+        const wob = 1 + 0.12 * Math.sin(sim.t * 2.2 + i * 1.7 + j * 0.9)
+        clDummy.position.set(clBaseX[j], clY[j], clZ[j])
+        clDummy.scale.setScalar((0.86 + 0.50 * clRnd[j]) * wob * k)
+        clDummy.rotation.set(clRnd[j] * 2.1, clRnd[j] * 3.1, 0)
+        clDummy.updateMatrix()
+        im.setMatrixAt(j, clDummy.matrix)
+      }
+      im.instanceMatrix.needsUpdate = true
+    }
+
+    // 甩料：叶片越过唇口后，泡沫团沿抛物线落进精矿槽（与槽内落料泡沫衔接）
+    const flow = clamp(A.scraperSpeed / 1.745)
+    const flingOn = A.foam > 0.15 && flow > 0.2
+    fling.visible = flingOn
+    if (flingOn) {
+      const FLIGHT = 0.86                       // 一次抛掷对应的轴转角（≈0.49 s，略短于每片叶片的间隔）
+      for (let j = 0; j < FL_N; j++) {
+        const lane = j % FL_LANES
+        const sub = ((j / FL_LANES) | 0) % FL_SUBS
+        const bi = (j / (FL_LANES * FL_SUBS)) | 0   // 0..4 对应 5 片叶片，逐波甩出
+        // 同一波沿唇口的泡沫几乎同时脱离，只留极小幅度的先后差，避免僵硬的直线队形
+        let p = (ang - (1.52 + bi * TAU / 5 + lane * 0.014 + sub * 0.075)) % TAU
+        if (p < 0) p += TAU
+        const u = p / FLIGHT
+        const alive = u < 1
+        const fade = alive ? 1 - s01((u - 0.76) / 0.24) : 0
+        const x = -0.87 + (lane / (FL_LANES - 1)) * 1.74 + (flRnd[j] - 0.5) * 0.05
+        // 起点在唇口顶面，先抬起越过唇口再落进精矿槽（浅抛物线），尺寸与叶片上的泡沫一致
+        clDummy.position.set(
+          x,
+          -0.055 + 0.135 * u - 0.265 * u * u + (flRnd[(j + 7) % FL_N] - 0.5) * 0.02,
+          0.30 + 0.36 * u + (flRnd[(j + 13) % FL_N] - 0.5) * 0.04,
+        )
+        clDummy.scale.setScalar(alive ? (0.82 + 0.40 * flRnd[j]) * fade * A.foam * flow : 0.0001)
+        clDummy.rotation.set(u * 4 + j, u * 2.3, u * 1.7)
+        clDummy.updateMatrix()
+        fling.setMatrixAt(j, clDummy.matrix)
+      }
+      fling.instanceMatrix.needsUpdate = true
+    }
   })
 }
 
@@ -559,17 +718,39 @@ function buildConcentrate(world, sim) {
 
   // 落料泡沫团：刮板每推一次，泡沫从唇口翻落进溜槽
   // 位置/相位/大小随机（构建期固定），避免排成一排的机械感
-  const SPILL_N = 14
+  const SPILL_N = 18
+  const spillGeo = new THREE.IcosahedronGeometry(0.034, 1)
+  {
+    const p = spillGeo.attributes.position
+    const v = new THREE.Vector3()
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i)
+      const h = Math.sin(v.x * 41.3 + v.y * 23.7 + v.z * 19.3) * 3571.33
+      const f = h - Math.floor(h)
+      const s = 0.74 + f * 0.36
+      p.setXYZ(i, v.x * s, v.y * s * 0.82, v.z * s)
+    }
+    spillGeo.computeVertexNormals()
+  }
   const spillMat = new THREE.MeshPhysicalMaterial({
-    color: 0xded0b2, roughness: 0.97, metalness: 0, transparent: true, opacity: 0.9,
+    map: tex, color: 0xeadfc6, roughness: 0.97, metalness: 0, transparent: true, opacity: 0.92,
     depthWrite: false, sheen: 0.22, sheenColor: 0xd8cbaa, sheenRoughness: 0.9,
   })
-  const spill = new THREE.InstancedMesh(new THREE.SphereGeometry(0.038, 8, 6), spillMat, SPILL_N)
+  const spill = new THREE.InstancedMesh(spillGeo, spillMat, SPILL_N)
   spill.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
   spill.frustumCulled = false
   spill.visible = false
   spill.renderOrder = 4
   g.add(spill)
+  {
+    const c = new THREE.Color()
+    for (let i = 0; i < SPILL_N; i++) {
+      const v = 0.72 + ((i * 29) % 13) / 13 * 0.26
+      c.setRGB(v, v * 0.96, v * 0.875)
+      spill.setColorAt(i, c)
+    }
+    spill.instanceColor.needsUpdate = true
+  }
   const spillDummy = new THREE.Object3D()
   const spillX = new Float32Array(SPILL_N)
   const spillZ = new Float32Array(SPILL_N)
@@ -659,15 +840,15 @@ function buildConcentrate(world, sim) {
     if (vis) {
       // 落料终点取内沿泡沫堆的表面，避免泡沫团穿过泡沫面
       const surfY = ly + 0.02 + 0.088 * clamp(A.foam)
-      const top = 2.345, drop = Math.max(0.04, top - surfY)
+      const top = 2.395, drop = Math.max(0.06, top - surfY)
       for (let i = 0; i < SPILL_N; i++) {
         const ph = (t * (0.50 + 0.28 * flow) * spillRate[i] + spillPh[i]) % 1
         spillDummy.position.set(
           spillX[i] + Math.sin(t * 1.1 + i * 2.3) * 0.012,
           top - ph * drop,
-          spillZ[i] + ph * 0.025,
+          spillZ[i] + ph * 0.055,
         )
-        spillDummy.scale.setScalar(spillSize[i] * (0.55 + 0.55 * Math.sin(ph * Math.PI)) * (0.7 + 0.5 * spillOn))
+        spillDummy.scale.setScalar(spillSize[i] * (0.40 + 0.50 * Math.sin(ph * Math.PI)) * (0.7 + 0.5 * spillOn))
         spillDummy.rotation.set(ph * 3 + i, i * 0.7, ph * 2)
         spillDummy.updateMatrix()
         spill.setMatrixAt(i, spillDummy.matrix)

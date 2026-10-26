@@ -1,0 +1,24 @@
+[
+  {
+    "js": "__HMI.setCamera([-1.28,3.25,1.18],[-0.74,2.17,0.55]); (function(){var k=setInterval(function(){var p=__HMI.stats().process;if(p==='IDLE')__HMI.flow('feed');else if(p==='FED')__HMI.flow('dose');else if(p==='FLOTATING')clearInterval(k)},250)})()",
+    "wait": 2.9,
+    "out": "out/d4_dosing.png"
+  },
+  {
+    "wait": 0.55,
+    "out": "out/d4_dosing2.png"
+  },
+  {
+    "js": "__HMI.setCamera([0.35,5.35,2.35],[0,2.27,0.86]); (function(){var k=setInterval(function(){if(__HMI.stats().process==='DOSED'){__HMI.flow('flotate');clearInterval(k)}},220)})()",
+    "wait": 4.2,
+    "out": "out/d4_scrape1.png"
+  },
+  {
+    "wait": 0.8,
+    "out": "out/d4_scrape2.png"
+  },
+  {
+    "wait": 0.6,
+    "out": "out/d4_scrape3.png"
+  }
+]

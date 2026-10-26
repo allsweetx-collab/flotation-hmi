@@ -1,0 +1,6 @@
+[
+  { "js": "__HMI.flow('feed')", "wait": 1.8, "out": "out/d21_feed.png" },
+  { "js": "__HMI.flow('dose')", "wait": 1.2, "out": "out/d21_dosing.png" },
+  { "js": "__HMI.sim.update = () => {}; (() => { const g = __HMI.world.parts.get('valve').group; return JSON.stringify({ kids: g.children.map(c => ({ t: c.type, v: c.visible, p: c.position.toArray(), n: c.children.length })), sMid: __HMI.screenOf(-0.30, 2.27, -0.30), sNoz: __HMI.screenOf(-0.30, 2.41, -0.30), sPatch: __HMI.screenOf(-0.30, 2.17, -0.30) }) })()", "wait": 0.4, "out": "out/d21_probe.png" },
+  { "js": "__HMI.world.parts.get('scraper').group.visible = false; __HMI.world.parts.get('telescopic').group.visible = false; __HMI.setCamera([-0.30,4.7,1.0],[-0.30,2.17,-0.30])", "wait": 0.5, "out": "out/d21_noscraper.png" }
+]

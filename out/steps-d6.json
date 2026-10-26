@@ -1,0 +1,8 @@
+[
+  { "js": "__HMI.flow('feed')", "wait": 1.8, "out": "out/d19_feed.png" },
+  { "js": "__HMI.flow('dose')", "wait": 2.3, "out": "out/d19_dosed.png" },
+  { "js": "__HMI.flow('flotate')", "wait": 3.0, "out": "out/d19_float.png" },
+  { "js": "__HMI.sim.anim.scraperAngle = 1.5708; __HMI.sim.update = () => {}; __HMI.setCamera([1.9,3.35,3.5],[-0.15,2.42,0.62])", "wait": 0.6, "out": "out/d19_blade_lip.png" },
+  { "js": "__HMI.sim.anim.scraperAngle = 0.35; ", "wait": 0.4, "out": "out/d19_blade_down.png" },
+  { "js": "__HMI.sim.anim.scraperAngle = 1.95; ", "wait": 0.4, "out": "out/d19_blade_throw.png" }
+]

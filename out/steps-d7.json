@@ -1,0 +1,6 @@
+[
+  { "js": "__HMI.flow('feed')", "wait": 1.8, "out": "out/d20_feed.png" },
+  { "js": "__HMI.flow('dose')", "wait": 1.5, "out": "out/d20_dosing.png" },
+  { "js": "__HMI.sim.update = () => {}; __HMI.setCamera([1.15,2.85,1.25],[-0.30,2.30,-0.30])", "wait": 0.5, "out": "out/d20_dosing_close.png" },
+  { "js": "__HMI.setCamera([3.4,5.75,6.0],[-0.05,1.5,0.02])", "wait": 0.3, "out": "out/d20_dosing_back.png" }
+]

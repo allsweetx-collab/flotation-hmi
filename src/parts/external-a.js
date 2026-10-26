@@ -18,7 +18,8 @@ const GRATE_TILE = 0.22                    // 格栅贴图一个循环对应多�
 const VX = -1.16, VY = 1.52, VZ = 0.35
 // 落矿点 / 加药注入点（液面扰动中心）
 const ORE_X = 0.15, ORE_Z = 0.15
-const DOSE_X = -0.73, DOSE_Z = 0.55
+// 注入点取在默认视角能看到的槽内液面（背侧偏左，位于后端挡板之前、刮板扫掠区之后），见下方下游药剂管
+const DOSE_X = -0.30, DOSE_Z = -0.50
 
 const smooth01 = (x) => { const t = clamp(x); return t * t * (3 - 2 * t) }
 
@@ -127,6 +128,18 @@ function makeWarnTex() {
   g.font = '500 21px "Segoe UI", Arial, sans-serif'
   g.fillStyle = 'rgba(255,184,77,0.62)'
   g.fillText('HOT PULP · 运行中禁止靠近', 124, 100)
+  return toTex(c)
+}
+
+// 药剂扩散色斑：径向渐变的琥珀色圆斑（加药时从注入口向外扩散）
+function makeAgentTex() {
+  const S = 128, c = makeCanvas(S, S), g = c.getContext('2d')
+  const gr = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2)
+  gr.addColorStop(0, 'rgba(214,148,62,0.90)')
+  gr.addColorStop(0.42, 'rgba(186,116,40,0.46)')
+  gr.addColorStop(0.76, 'rgba(146,86,28,0.16)')
+  gr.addColorStop(1, 'rgba(146,86,28,0)')
+  g.fillStyle = gr; g.fillRect(0, 0, S, S)
   return toTex(c)
 }
 
@@ -720,15 +733,18 @@ export function buildExternalA(world) {
   vadd('steel', GEO.pipe(supplyPts, 0.028, { seg: 60, radial: 12 }))
   vadd('steel', discXGeo(0.058, 0.024, 24, -0.475, 1.10, -0.97))
   vadd('steel', boltsXGeo(4, 0.042, 0.008, 0.016, -0.489, 1.10, -0.97))
-  // 下游：出阀后沿槽外壁上行，翻过口沿，弯向槽内注入
+  // 下游：出阀后沿槽外壁上行，绕过背侧口沿，再伸入槽内注入
+  // （注入点选在槽内可见区域：背侧偏左液面，默认视角可直接看到药剂细流与色斑）
   const outPts = [
-    [0, 0, 0.19], [0, 0.18, 0.20], [0, 0.66, 0.20], [0, 0.92, 0.20], [0, 0.98, 0.20],
-    [0.11, 0.985, 0.20], [0.26, 0.945, 0.20], [0.37, 0.865, 0.20], [0.425, 0.795, 0.20],
+    [0, 0.19, 0.19], [0, 0.30, 0.20], [0, 0.66, 0.20], [0, 0.94, 0.20],
+    [0, 1.02, 0.10], [0, 1.05, -0.35], [0, 1.05, -1.02],
+    [0.12, 1.06, -1.16], [0.46, 1.06, -1.22],
+    [0.78, 1.03, -1.06], [0.86, 1.02, -0.94], [0.86, 0.99, -0.85],
   ]
-  vadd('steel', GEO.pipe(outPts, 0.024, { seg: 60, radial: 12 }))
+  vadd('steel', GEO.pipe(outPts, 0.024, { seg: 72, radial: 12 }))
   // 喷嘴
-  vadd('steel', cylGeo(0.030, 0.090, 18, 0.425, 0.735, 0.20))
-  vadd('steel', cylGeo(0.020, 0.030, 16, 0.425, 0.688, 0.20))
+  vadd('steel', cylGeo(0.030, 0.085, 18, 0.86, 0.930, -0.85))
+  vadd('steel', cylGeo(0.021, 0.035, 16, 0.86, 0.882, -0.85))
   // 管夹 / 支架（与槽壁、口沿刚性连接）
   for (const y of [0.42, 0.76]) {
     vadd('dark', boxGeo(0.30, 0.026, 0.05, 0.01, y, -0.97))
@@ -748,6 +764,10 @@ export function buildExternalA(world) {
   // 口沿处的固定夹（跨过槽口沿）
   vadd('dark', boxGeo(0.05, 0.05, 0.05, 0.12, 0.965, 0.20))
   vadd('steel', new THREE.TorusGeometry(0.030, 0.0065, 6, 16).rotateY(Math.PI / 2).translate(0.11, 0.985, 0.20))
+  // 背侧口沿的支撑立柱：把跨越槽口的管段固定住（局部 z≈-1.20 即槽后壁）
+  vadd('dark', boxGeo(0.046, 0.24, 0.046, 0.46, 0.945, -1.19))
+  vadd('dark', boxGeo(0.11, 0.028, 0.046, 0.46, 1.045, -1.19))
+  vadd('steel', new THREE.TorusGeometry(0.030, 0.0065, 6, 16).rotateY(Math.PI / 2).translate(0.46, 1.045, -1.19))
 
   const vMerged = (k, mat) => {
     if (!vb[k].length) return
@@ -786,22 +806,23 @@ export function buildExternalA(world) {
   // 加药细流（双芯半透明细圆柱）+ 液滴串
   const streamGroup = new THREE.Group()
   const streamOuterMat = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(0.30, 0.15, 0.035), roughness: 0.12, metalness: 0, transparent: true,
-    opacity: 0.5, depthWrite: false, side: THREE.DoubleSide, envMapIntensity: 1.4, clearcoat: 1,
+    color: new THREE.Color(0.45, 0.24, 0.055), roughness: 0.12, metalness: 0, transparent: true,
+    opacity: 0.85, depthWrite: false, side: THREE.DoubleSide, envMapIntensity: 1.4, clearcoat: 1,
+    emissive: new THREE.Color(0.58, 0.32, 0.085), emissiveIntensity: 0.7,
   })
-  const streamInnerMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.52, 0.30, 0.09), transparent: true, opacity: 0.55, depthWrite: false })
-  const streamOuter = new THREE.Mesh(new THREE.CylinderGeometry(0.0072, 0.0082, 0.16, 12, 1, true), streamOuterMat)
-  streamOuter.position.set(0.425, 0.628, 0.20)
+  const streamInnerMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.0, 0.68, 0.24), transparent: true, opacity: 0.95, depthWrite: false, toneMapped: false })
+  const streamOuter = new THREE.Mesh(new THREE.CylinderGeometry(0.0155, 0.0175, 0.235, 12, 1, true), streamOuterMat)
+  streamOuter.position.set(0.86, 0.7525, -0.85)
   streamOuter.renderOrder = 7
   streamGroup.add(streamOuter)
-  const streamInner = new THREE.Mesh(new THREE.CylinderGeometry(0.0032, 0.0036, 0.16, 8), streamInnerMat)
+  const streamInner = new THREE.Mesh(new THREE.CylinderGeometry(0.0095, 0.0105, 0.235, 8), streamInnerMat)
   streamInner.position.copy(streamOuter.position)
   streamInner.renderOrder = 8
   streamGroup.add(streamInner)
   const DOSE_N = 6
   const doseDrop = new THREE.InstancedMesh(
-    new THREE.SphereGeometry(0.0062, 8, 6),
-    new THREE.MeshBasicMaterial({ color: new THREE.Color(0.42, 0.23, 0.06), transparent: true, opacity: 0.8, depthWrite: false }),
+    new THREE.SphereGeometry(0.0115, 8, 6),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(0.84, 0.50, 0.14), transparent: true, opacity: 0.88, depthWrite: false, toneMapped: false }),
     DOSE_N,
   )
   doseDrop.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
@@ -810,6 +831,39 @@ export function buildExternalA(world) {
   streamGroup.add(doseDrop)
   streamGroup.visible = false
   valve.add(streamGroup)
+
+  // 药剂冲击液面的飞溅：一圈小液滴从注入点向外抛起再落回
+  const DOSE_SPL = 8
+  const doseSplash = new THREE.InstancedMesh(
+    new THREE.SphereGeometry(0.0115, 8, 6),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(0.95, 0.62, 0.20), transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false }),
+    DOSE_SPL,
+  )
+  doseSplash.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+  doseSplash.frustumCulled = false
+  doseSplash.renderOrder = 8
+  doseSplash.visible = false
+  valve.add(doseSplash)
+
+  // 加药扩散：注入口在液面的药剂色斑 + 向外扩散的环形波
+  const patchMat = new THREE.MeshBasicMaterial({ map: makeAgentTex(), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })
+  const patch = new THREE.Mesh(new THREE.PlaneGeometry(0.68, 0.68).rotateX(-Math.PI / 2), patchMat)
+  patch.position.set(0.86, 0.648, -0.85)
+  patch.renderOrder = 3
+  patch.visible = false
+  valve.add(patch)
+  const rippleGeo = new THREE.RingGeometry(0.962, 1.0, 48).rotateX(-Math.PI / 2)
+  const ripples = []
+  for (let i = 0; i < 3; i++) {
+    const r = new THREE.Mesh(rippleGeo, new THREE.MeshBasicMaterial({
+      color: new THREE.Color(0.86, 0.58, 0.26), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
+    }))
+    r.position.set(0.86, 0.651, -0.85)
+    r.renderOrder = 4
+    r.visible = false
+    valve.add(r)
+    ripples.push(r)
+  }
 
   world.addPart('valve', valve, {
     label: '药剂阀', htmlLabel: '药剂阀 · 开度 0 %',
@@ -834,7 +888,7 @@ export function buildExternalA(world) {
     // 落矿涟漪（半径自落点向外传播，splash 由 1 → 0）
     const spl = A.splash
     const splPhase = (1 - spl) * 17
-    const doseAmp = A.dose > 0.001 && sim.process === 'DOSING' ? A.dose * 0.0045 : 0
+    const doseAmp = A.dose > 0.001 && sim.process === 'DOSING' ? A.dose * 0.010 : 0
     for (let iz = 0; iz <= SEGZ; iz++) {
       for (let ix = 0; ix <= SEGX; ix++) {
         const i = iz * NX + ix
@@ -986,16 +1040,52 @@ export function buildExternalA(world) {
       const fl = 1 + Math.sin(t * 46) * 0.16
       streamOuter.scale.set(fl, 1, fl)
       streamInner.scale.set(fl, 1, fl)
-      streamInnerMat.opacity = 0.4 + 0.22 * (0.5 + 0.5 * Math.sin(t * 31))
+      streamInnerMat.opacity = 0.80 + 0.16 * (0.5 + 0.5 * Math.sin(t * 31))
       for (let i = 0; i < DOSE_N; i++) {
         const ph = (t * 0.95 + i / DOSE_N) % 1
-        dummy.position.set(0.425 + 0.0025 * Math.sin(t * 9 + i), 0.70 - ph * 0.135, 0.20)
+        dummy.position.set(0.86 + 0.0028 * Math.sin(t * 9 + i), 0.868 - ph * 0.222, -0.85)
         dummy.scale.setScalar(0.7 + 0.5 * (1 - ph))
         dummy.rotation.set(0, 0, 0)
         dummy.updateMatrix()
         doseDrop.setMatrixAt(i, dummy.matrix)
       }
       doseDrop.instanceMatrix.needsUpdate = true
+
+      // 冲击飞溅：一圈小液滴从注入点向外抛起、抛出、落回液面
+      doseSplash.visible = true
+      for (let i = 0; i < DOSE_SPL; i++) {
+        const ph = (t * 1.55 + i / DOSE_SPL) % 1
+        const a = (i / DOSE_SPL) * Math.PI * 2 + 0.4
+        const rr = 0.045 + ph * 0.17
+        dummy.position.set(0.86 + Math.cos(a) * rr, 0.648 + 0.10 * ph * (1 - ph) * 2.2, -0.85 + Math.sin(a) * rr * 0.8)
+        dummy.scale.setScalar(0.9 * (1 - ph * 0.55))
+        dummy.rotation.set(0, 0, 0)
+        dummy.updateMatrix()
+        doseSplash.setMatrixAt(i, dummy.matrix)
+      }
+      doseSplash.instanceMatrix.needsUpdate = true
+
+      // 药剂在液面扩散：色斑随开度长大，环形波从色斑外缘一圈圈向外推
+      patch.visible = true
+      patch.scale.setScalar(0.45 + 0.55 * smooth01(A.dose))
+      patchMat.opacity = 0.78 * smooth01(A.dose * 1.3) * A.valve
+      for (let i = 0; i < 3; i++) {
+        const rp = (t * 0.62 + i / 3) % 1
+        const r = ripples[i]
+        r.visible = true
+        r.scale.setScalar(0.24 + rp * 0.28)
+        r.material.opacity = (1 - rp) * 0.34 * A.valve
+      }
+    } else {
+      // 加药结束后色斑短暂停留（药剂正在扩散），浮选泡沫长大后自然被盖住
+      const keep = A.dose > 0.02 && sim.process !== 'FLOTATING'
+      patch.visible = keep
+      if (keep) {
+        patch.scale.setScalar(1.0)
+        patchMat.opacity = 0.45 * (1 - smooth01(A.foam * 2))
+      }
+      doseSplash.visible = false
+      for (let i = 0; i < 3; i++) ripples[i].visible = false
     }
 
     // ---------------- 现场状态灯 ----------------
